@@ -20,57 +20,8 @@ from typing import Any, Dict, List
 import yaml
 
 
-def run_redup_scan(project_path: Path) -> Dict[str, Any]:
-    """Run redup scan on the project and return summary metrics."""
-    try:
-        cmd = [sys.executable, "-m", "redup", "scan", str(project_path)]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        lines_scanned = 0
-        dup_groups = 0
-        for line in res.stdout.splitlines():
-            if "files_scanned:" in line:
-                try:
-                    lines_scanned = int(line.split(":")[1].strip())
-                except ValueError:
-                    pass
-            elif "dup_groups:" in line:
-                try:
-                    dup_groups = int(line.split(":")[1].strip())
-                except ValueError:
-                    pass
-        return {
-            "success": res.returncode == 0,
-            "dup_groups": dup_groups,
-            "raw_output": res.stdout[:500]
-        }
-    except Exception as exc:
-        return {"success": False, "error": str(exc), "dup_groups": 0}
-
-
-def search_workspace_candidates(query: str) -> List[Dict[str, str]]:
-    """Query subactor-search for candidate projects."""
-    search_py = Path("/home/tom/github/semcod/search/src")
-    if not search_py.exists():
-        return []
-    try:
-        env = os.environ.copy()
-        env["PYTHONPATH"] = str(search_py)
-        cmd = [sys.executable, "-m", "subactor_search", "ask", query, "--json"]
-        res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=20)
-        if res.returncode == 0 and res.stdout.strip():
-            data = json.loads(res.stdout)
-            candidates = []
-            for hit in data.get("hits", [])[:5]:
-                proj = hit.get("project") or hit.get("repo") or "unknown"
-                candidates.append({"project": proj, "file": hit.get("path", "")})
-            return candidates
-    except Exception:
-        pass
-    return []
-
-
-def create_reuse_tasks(project_path: Path, topic: str = "") -> List[Dict[str, Any]]:
-    """Generate planfile tasks based on reuse policy."""
+def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Generate both planfile tasks list and canonical sprint tickets dict."""
     now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
     ts = int(time.time())
     proj_name = project_path.name
@@ -166,12 +117,56 @@ def create_reuse_tasks(project_path: Path, topic: str = "") -> List[Dict[str, An
         }
     ]
 
-    return tasks
+    canonical_tickets: Dict[str, Any] = {}
+    for t in tasks:
+        tid = f"REUSE-{t['id'].upper()}"
+        script_cmd = "git status --porcelain"
+        if "redup" in t["labels"]:
+            script_cmd = "python3 -m redup scan ."
+        elif "docs" in t["labels"]:
+            script_cmd = "test -f docs/ARCHITECTURE.md || test -d docs/FEATURE"
+        elif "discovery" in t["labels"]:
+            script_cmd = "PYTHONPATH=/home/tom/github/semcod/search/src python3 -m subactor_search ask 'tauri' --json || true"
+
+        canonical_tickets[tid] = {
+            "id": tid,
+            "name": t["title"],
+            "description": t["description"],
+            "priority": "normal" if t["priority"] == "medium" else "high",
+            "sprint": "current",
+            "status": "open",
+            "labels": t["labels"],
+            "inputs": {
+                "script": script_cmd,
+                "expect_files_changed": False
+            },
+            "execution": {
+                "attempt": 0,
+                "max_attempts": 3,
+                "queue": "default",
+                "state": "ready"
+            },
+            "executor": {
+                "kind": "shell",
+                "mode": "autonomous"
+            }
+        }
+
+    return tasks, canonical_tickets
 
 
-def update_planfile_sprint(sprint_path: Path, new_tasks: List[Dict[str, Any]], dry_run: bool = False) -> int:
-    """Safely append or merge new reuse tasks into sprint file."""
-    sprint_data: Dict[str, Any] = {"schema": "planfile.sprint/v1", "sprint": "current", "tasks": []}
+def update_planfile_sprint(sprint_path: Path, new_tasks: List[Dict[str, Any]], canonical_tickets: Dict[str, Any], dry_run: bool = False) -> int:
+    """Safely append or merge new reuse tasks into sprint file in canonical planfile format."""
+    sprint_data: Dict[str, Any] = {
+        "schema": "planfile.sprint/v1",
+        "sprint": {
+            "id": "current",
+            "name": "Current Sprint",
+            "status": "active",
+            "tickets": {}
+        },
+        "tasks": []
+    }
     
     if sprint_path.exists():
         try:
@@ -182,7 +177,25 @@ def update_planfile_sprint(sprint_path: Path, new_tasks: List[Dict[str, Any]], d
         except Exception as exc:
             print(f"Warning: could not parse existing sprint file: {exc}", file=sys.stderr)
 
+    # Normalize sprint structure
+    if not isinstance(sprint_data.get("sprint"), dict):
+        sprint_data["sprint"] = {
+            "id": "current",
+            "name": "Current Sprint",
+            "status": "active",
+            "tickets": {}
+        }
+    elif "tickets" not in sprint_data["sprint"] or not isinstance(sprint_data["sprint"]["tickets"], dict):
+        sprint_data["sprint"]["tickets"] = {}
+
+    existing_tickets = sprint_data["sprint"]["tickets"]
+    for tid, tdata in canonical_tickets.items():
+        if tid not in existing_tickets:
+            existing_tickets[tid] = tdata
+
     existing_tasks = sprint_data.get("tasks", [])
+    if not isinstance(existing_tasks, list):
+        existing_tasks = []
     existing_titles = {t.get("title") for t in existing_tasks if isinstance(t, dict)}
     
     added_count = 0
@@ -194,16 +207,14 @@ def update_planfile_sprint(sprint_path: Path, new_tasks: List[Dict[str, Any]], d
     sprint_data["tasks"] = existing_tasks
 
     if dry_run:
-        print(f"[DRY-RUN] Would append {added_count} reuse tasks to {sprint_path}:")
-        for t in new_tasks:
-            print(f"  ➜ {t['id']}: {t['title']}")
+        print(f"[DRY-RUN] Would append {added_count} reuse tasks to {sprint_path}")
         return added_count
 
     sprint_path.parent.mkdir(parents=True, exist_ok=True)
     with open(sprint_path, "w", encoding="utf-8") as f:
         yaml.dump(sprint_data, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
 
-    print(f"✅ Successfully written {added_count} reuse tasks to {sprint_path}")
+    print(f"✅ Successfully written {len(canonical_tickets)} canonical tickets to {sprint_path}")
     return added_count
 
 
@@ -220,10 +231,10 @@ def main() -> int:
         return 1
 
     print(f"🔍 Analyzing project for reuse: {project_dir.name}")
-    tasks = create_reuse_tasks(project_dir, topic=args.topic)
+    tasks, tickets = create_reuse_plan_data(project_dir, topic=args.topic)
 
     sprint_path = project_dir / ".planfile" / "sprints" / "current.yaml"
-    added = update_planfile_sprint(sprint_path, tasks, dry_run=args.dry_run)
+    added = update_planfile_sprint(sprint_path, tasks, tickets, dry_run=args.dry_run)
     return 0
 
 
