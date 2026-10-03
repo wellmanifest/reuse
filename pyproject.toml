@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wellmanifest-reuse"
+version = "0.1.0"
+description = "Wellmanifest Reuse Standard - Discovery, Deduplication, and Modularization"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

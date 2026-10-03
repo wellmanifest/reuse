@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema": "wellmanifest.reuse-policy/v1",
+  "title": "Wellmanifest Reuse Policy Standard",
+  "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
+  "version": "0.1.0",
+  "rules": [
+    {
+      "code": "REUSE-001",
+      "name": "Search Before Generate",
+      "severity": "CRITICAL",
+      "statement": "Before generating a new utility module, CLI tool, or service component from scratch, the author or autonomous agent MUST query the local workspace index (via semcod/search / subactor-search) for existing implementations, models, and shared libraries.",
+      "remediation": "Query `subactor-search ask \"<concept>\"` and review candidate projects before scaffolding."
+    },
+    {
+      "code": "REUSE-002",
+      "name": "Duplication & Clone Detection",
+      "severity": "HIGH",
+      "statement": "Repositories MUST be analyzed for AST and block duplication using semcod/redup. Internal clone groups with >= 30 lines and >= 0.85 similarity must have an active refactoring plan or modularization ticket.",
+      "thresholds": {
+        "min_lines": 10,
+        "similarity_threshold": 0.80,
+        "max_unmitigated_duplicate_groups": 2
+      },
+      "remediation": "Run `redup scan .` and decompose identified clones into planfile refactoring tasks."
+    },
+    {
+      "code": "REUSE-003",
+      "name": "Continuous Modularization & Extraction",
+      "severity": "HIGH",
+      "statement": "When identical or near-identical logic is identified across 2 or more repositories via `redup compare`, the logic MUST be considered for extraction into an independent package (under `packages/<name>` or a dedicated domain repo in wellmanifest/* or semcod/*) with pinned interfaces.",
+      "remediation": "Decompose into an extraction ticket: isolate function/class, write unit tests, export entry point."
+    },
+    {
+      "code": "REUSE-004",
+      "name": "Structured Planfile Decomposition",
+      "severity": "HIGH",
+      "statement": "Reuse and deduplication efforts MUST be broken down into structured, prioritized tickets in .planfile/sprints/current.yaml following the 5-phase lifecycle: DISCOVER -> COMPARE -> EXTRACT -> CONSUME -> VERIFY.",
+      "remediation": "Generate tickets with `python3 scripts/generate_reuse_plan.py --project <repo_dir>`."
+    },
+    {
+      "code": "REUSE-005",
+      "name": "Autonomous Execution Delegation (Koru Handoff)",
+      "severity": "MEDIUM",
+      "statement": "All generated reuse and deduplication tickets intended for autonomous delivery MUST include `tier: refactor` or `tier: reuse`, labels `[koru-autonomous, reuse]`, deterministic verification commands, and exit code 0 acceptance criteria.",
+      "remediation": "Include koru handoff metadata in ticket definitions for autonomous processing via `koru --queue`."
+    },
+    {
+      "code": "REUSE-006",
+      "name": "Enforced Documentation & Telemetry Standards",
+      "severity": "HIGH",
+      "statement": "All non-fork, user-authored repositories MUST enforce wellmanifest/docs (Compact v2: max 120 lines / 600 words per doc, clear docs/ index) and wellmanifest/logs (errors/{CODE}.md runbooks, structured JSONL logs). Documentation auto-sync SHOULD leverage semcod/code2docs.",
+      "remediation": "Initialize docs/ with compact markdown specs and add error runbooks for all handled exit codes."
+    }
+  ]
+}

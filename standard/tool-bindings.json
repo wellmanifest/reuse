@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema": "wellmanifest.reuse-tool-bindings/v1",
+  "description": "Deterministic mapping of tools and methodologies for discovering, analyzing, deduplicating, modularizing, and reusing packages and code across the ~/github/* workspace.",
+  "bindings": [
+    {
+      "code": "REUSE-DISCOVER-001",
+      "name": "capability-and-intent-discovery",
+      "phase": "discovery",
+      "tool": "semcod/search",
+      "binary": "subactor-search",
+      "command": "PYTHONPATH=/home/tom/github/semcod/search/src python3 -m subactor_search ask \"<query>\" --json",
+      "description": "Performs local, zero-LLM-cost, high-speed SQLite FTS5 search across all ~240+ repositories in ~/github/ to locate existing capabilities, intents, and dependencies before authoring new components.",
+      "evidenceRequired": "Search result list of candidate repositories or confirmation of novelty"
+    },
+    {
+      "code": "REUSE-TOPOLOGY-002",
+      "name": "workspace-topology-and-drift",
+      "phase": "topology",
+      "tool": "semcod/monag",
+      "binary": "monag",
+      "command": "PYTHONPATH=/home/tom/github/semcod/monag/src python3 -m monag status",
+      "description": "Analyzes cross-repository topologies, drift between primary checkouts, active agent processes, and planfile ticket backlogs across the workspace.",
+      "evidenceRequired": "Monag workspace snapshot and drift status"
+    },
+    {
+      "code": "REUSE-DEDUP-003",
+      "name": "clone-detection-and-cross-comparison",
+      "phase": "analysis",
+      "tool": "semcod/redup",
+      "binary": "redup",
+      "command": "python3 -m redup compare <project_a> <project_b> --min-lines 10 --threshold 0.75",
+      "description": "Performs AST and block-level clone detection. Compares two projects to calculate shared LOC and recommend refactoring strategies (merge, extract, or keep separate).",
+      "evidenceRequired": "redup scan/compare report with identified duplication groups and recoverable lines"
+    },
+    {
+      "code": "REUSE-MODULARIZE-004",
+      "name": "continuous-modularization",
+      "phase": "modularization",
+      "tool": "wellmanifest/modularity",
+      "binary": "modularity",
+      "command": "python3 standard/conformance.py --check-boundaries",
+      "description": "Defines rules for extracting shared logic into focused standalone packages (under packages/ or dedicated domain repos) to facilitate multi-project consumption.",
+      "evidenceRequired": "Isolated package boundary with clean interface contract and unit tests"
+    },
+    {
+      "code": "REUSE-PLAN-005",
+      "name": "planfile-task-decomposition",
+      "phase": "planning",
+      "tool": "planfile",
+      "binary": "planfile",
+      "command": "python3 scripts/generate_reuse_plan.py --project <target_dir>",
+      "description": "Decomposes reuse, extraction, and deduplication opportunities into structured planfile tickets (Discover, Compare, Extract, Consume, Verify) in .planfile/sprints/current.yaml.",
+      "evidenceRequired": "Valid planfile.sprint/v1 sprint file populated with reuse tickets"
+    },
+    {
+      "code": "REUSE-EXEC-006",
+      "name": "closed-loop-autonomous-execution",
+      "phase": "execution",
+      "tool": "semcod/koru",
+      "binary": "koru",
+      "command": "python3 -m koru --queue --project <target_dir> --actor koru",
+      "description": "Autonomously claims and executes reuse/deduplication tickets from the planfile queue in isolated worktrees until green verification is achieved.",
+      "evidenceRequired": "Planfile ticket marked done with verification test output (exit code 0)"
+    },
+    {
+      "code": "REUSE-DOCS-007",
+      "name": "governed-documentation-sync",
+      "phase": "documentation",
+      "tool": "wellmanifest/docs",
+      "companion": "semcod/code2docs",
+      "command": "python3 standard/docs_check.py --format v2",
+      "description": "Enforces concise, structured documentation (Compact v2: 120 lines max, single topic) and automated API sync via code2docs for all non-fork user projects.",
+      "evidenceRequired": "Canonical docs/ structure with index and valid markdown references"
+    },
+    {
+      "code": "REUSE-LOGS-008",
+      "name": "structured-event-and-error-runbooks",
+      "phase": "telemetry",
+      "tool": "wellmanifest/logs",
+      "binary": "logs_check.py",
+      "command": "python3 standard/logs_check.py validate --root .",
+      "description": "Requires append-only structured JSONL event logging and explicit runbooks in errors/{CODE}.md for every runtime failure mode.",
+      "evidenceRequired": "errors/ catalog and conforming log schema"
+    }
+  ]
+}
