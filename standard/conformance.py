@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
+
+import yaml
 
 
 class ConformanceResult:
@@ -53,72 +54,82 @@ def check_schema_files(root: Path) -> bool:
     try:
         with open(policy_path, "r", encoding="utf-8") as f:
             policy = json.load(f)
-            assert policy.get("schema") == "wellmanifest.reuse-policy/v1"
-            assert len(policy.get("rules", [])) >= 6
+            if not isinstance(policy, dict) or policy.get("schema") != "wellmanifest.reuse-policy/v1":
+                raise ValueError("invalid policy identity")
+            rules = policy.get("rules")
+            if not isinstance(rules, list) or len(rules) < 6 or any(not isinstance(rule, dict) for rule in rules):
+                raise ValueError("invalid policy rules")
             
         with open(bindings_path, "r", encoding="utf-8") as f:
             bindings = json.load(f)
-            assert bindings.get("schema") == "wellmanifest.reuse-tool-bindings/v1"
-            assert len(bindings.get("bindings", [])) >= 8
+            if not isinstance(bindings, dict) or bindings.get("schema") != "wellmanifest.reuse-tool-bindings/v1":
+                raise ValueError("invalid bindings identity")
+            entries = bindings.get("bindings")
+            if not isinstance(entries, list) or len(entries) < 8 or any(not isinstance(entry, dict) for entry in entries):
+                raise ValueError("invalid tool bindings")
         return True
     except Exception as exc:
         print(f"Schema validation error: {exc}", file=sys.stderr)
         return False
 
 
+def _nonempty(path: Path) -> bool:
+    try:
+        return path.is_file() and bool(path.read_text(encoding="utf-8").strip())
+    except (OSError, UnicodeError):
+        return False
+
+
+def _has_sprint(sprints_dir: Path) -> bool:
+    for path in sorted(sprints_dir.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        sprint = data.get("sprint")
+        if (isinstance(sprint, dict) and isinstance(sprint.get("id"), str)
+                and sprint["id"].strip() and isinstance(sprint.get("tickets"), dict)):
+            return True
+    return False
+
+
 def run_conformance(target_dir: Path) -> ConformanceResult:
+    """Check bounded content evidence; do not certify unobserved enforcement."""
     result = ConformanceResult(target_dir)
-
-    # REUSE-004: Planfile structure
-    planfile_dir = target_dir / ".planfile"
-    sprints_dir = planfile_dir / "sprints"
-    has_planfile = planfile_dir.is_dir() and sprints_dir.is_dir()
+    has_planfile = _has_sprint(target_dir / ".planfile" / "sprints")
     result.add_check(
-        code="REUSE-004",
-        name="Planfile Task Orchestration",
-        passed=has_planfile,
-        message="Repository has .planfile/sprints directory for ticket orchestration" if has_planfile else "Missing .planfile/sprints directory",
-        details={"planfile_exists": has_planfile}
+        "REUSE-004", "Planfile Task Orchestration", has_planfile,
+        "Parsed sprint with ID and ticket mapping" if has_planfile else "No parseable sprint with ID and ticket mapping",
+        {"planfile_exists": has_planfile, "standard_enforcement_verified": False},
     )
 
-    # REUSE-006: Docs standard (wellmanifest/docs)
     docs_dir = target_dir / "docs"
-    readme_file = target_dir / "README.md"
-    has_docs = docs_dir.is_dir() or readme_file.is_file()
-    
-    # Check for compact docs or markdown files
-    md_count = len(list(docs_dir.glob("**/*.md"))) if docs_dir.is_dir() else 0
-    docs_passed = docs_dir.is_dir() and (md_count > 0 or readme_file.is_file())
+    md_count = sum(_nonempty(path) for path in docs_dir.glob("**/*.md"))
+    has_docs = _nonempty(docs_dir / "README.md")
     result.add_check(
-        code="REUSE-006A",
-        name="Wellmanifest Docs Compliance",
-        passed=docs_passed,
-        message=f"Repository has docs/ directory with {md_count} specification documents" if docs_passed else "Missing docs/ directory or documentation index",
-        details={"docs_dir": docs_dir.is_dir(), "doc_files_count": md_count}
+        "REUSE-006A", "Documentation Index Evidence", has_docs,
+        "Nonempty docs/README.md index present" if has_docs else "Missing nonempty docs/README.md index",
+        {"docs_dir": docs_dir.is_dir(), "doc_files_count": md_count,
+         "standard_enforcement_verified": False},
     )
 
-    # REUSE-006B: Error runbooks / logs (wellmanifest/logs)
-    errors_dir = target_dir / "errors"
-    has_errors_or_logs = errors_dir.is_dir() or (docs_dir / "TROUBLESHOOTING.md").exists() or (target_dir / "logs").is_dir()
+    has_runbooks = any(_nonempty(path) for path in (target_dir / "errors").glob("*.md"))
+    has_runbooks = has_runbooks or _nonempty(docs_dir / "TROUBLESHOOTING.md")
     result.add_check(
-        code="REUSE-006B",
-        name="Wellmanifest Logs & Runbooks Compliance",
-        passed=has_errors_or_logs,
-        message="Repository provides error runbooks or structured troubleshooting guide" if has_errors_or_logs else "No errors/ runbooks or TROUBLESHOOTING.md found",
-        details={"has_runbooks": has_errors_or_logs}
+        "REUSE-006B", "Runbook Content Evidence", has_runbooks,
+        "Nonempty runbook or troubleshooting guide present" if has_runbooks else "Missing nonempty runbook or troubleshooting guide",
+        {"has_runbooks": has_runbooks, "standard_enforcement_verified": False},
     )
 
-    # REUSE-002: Duplication check
-    # Check if a duplication summary or redup scan was run
-    redup_file = target_dir / ".redup"
+    # No trusted scan adapter is bound yet. Eligibility and file presence cannot
+    # establish that duplication was measured or that findings were mitigated.
     result.add_check(
-        code="REUSE-002",
-        name="Duplication & Clone Awareness",
-        passed=True,
-        message="Codebase is eligible for redup scan and clone analysis",
-        details={"path": str(target_dir)}
+        "REUSE-002", "Duplication & Clone Awareness", False,
+        "Unverified: no validated, revision-bound redup scan evidence adapter",
+        {"path": str(target_dir), "status": "unverified"},
     )
-
     return result
 
 
