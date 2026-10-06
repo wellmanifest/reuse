@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wellmanifest/reuse/schemas/tool-bindings.schema.json",
+  "type": "object",
+  "required": ["schema", "bindings"],
+  "properties": {
+    "schema": {"const": "wellmanifest.reuse-tool-bindings/v1"},
+    "bindings": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "phase", "tool", "command", "evidenceRequired"],
+        "properties": {
+          "code": {"type": "string", "pattern": "^REUSE-[A-Z]+-\\d{3}$"},
+          "name": {"type": "string", "minLength": 1},
+          "phase": {"type": "string", "minLength": 1},
+          "tool": {"type": "string", "minLength": 1},
+          "binary": {"type": "string", "minLength": 1},
+          "command": {"type": "string", "minLength": 1},
+          "evidenceRequired": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

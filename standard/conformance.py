@@ -46,30 +46,34 @@ class ConformanceResult:
         }
 
 
+def _unique(values: List[Any], label: str) -> None:
+    if len(values) != len(set(values)):
+        raise ValueError(f"duplicate {label}")
+
+
 def check_schema_files(root: Path) -> bool:
-    """Validate that standard policy and tool bindings are valid JSON."""
+    """Validate policy and tool bindings against JSON Schemas.
+
+    Uses explicit exceptions (never ``assert``) so rejection is identical under ``python -O``.
+    """
+    from jsonschema import Draft202012Validator
+
     policy_path = root / "standard" / "reuse-policy.json"
     bindings_path = root / "standard" / "tool-bindings.json"
-    
-    if not policy_path.exists() or not bindings_path.exists():
-        return False
-    
+    pairs = (
+        (policy_path, root / "schemas" / "reuse-policy.schema.json", "rules", "rule codes"),
+        (bindings_path, root / "schemas" / "tool-bindings.schema.json", "bindings", "binding codes"),
+    )
     try:
-        with open(policy_path, "r", encoding="utf-8") as f:
-            policy = json.load(f)
-            if not isinstance(policy, dict) or policy.get("schema") != "wellmanifest.reuse-policy/v1":
-                raise ValueError("invalid policy identity")
-            rules = policy.get("rules")
-            if not isinstance(rules, list) or len(rules) < 6 or any(not isinstance(rule, dict) for rule in rules):
-                raise ValueError("invalid policy rules")
-            
-        with open(bindings_path, "r", encoding="utf-8") as f:
-            bindings = json.load(f)
-            if not isinstance(bindings, dict) or bindings.get("schema") != "wellmanifest.reuse-tool-bindings/v1":
-                raise ValueError("invalid bindings identity")
-            entries = bindings.get("bindings")
-            if not isinstance(entries, list) or len(entries) < 8 or any(not isinstance(entry, dict) for entry in entries):
-                raise ValueError("invalid tool bindings")
+        for data_path, schema_path, key, label in pairs:
+            data = json.loads(data_path.read_text(encoding="utf-8"))
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            Draft202012Validator.check_schema(schema)
+            errors = sorted(Draft202012Validator(schema).iter_errors(data), key=lambda e: list(e.path))
+            if errors:
+                first = errors[0]
+                raise ValueError(f"{data_path.name}: {'/'.join(map(str, first.path)) or '<root>'}: {first.message}")
+            _unique([entry["code"] for entry in data[key]], label)
         return True
     except Exception as exc:
         print(f"Schema validation error: {exc}", file=sys.stderr)
