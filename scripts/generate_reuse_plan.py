@@ -13,6 +13,7 @@ import fcntl
 import hashlib
 import json
 import os
+import shlex
 import tempfile
 import subprocess
 import sys
@@ -20,6 +21,20 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
+
+
+def verification_command(kind: str, topic: str, proj_name: str) -> str:
+    """Single source for each ticket's verification: shown in the description AND executed.
+
+    No ``|| true``/``|| fallback``: a failing discovery or scan must fail the ticket.
+    """
+    if kind == "discovery":
+        return shlex.join(["subactor-search", "ask", topic or proj_name, "--json"])
+    if kind == "refactor":
+        return shlex.join(["python3", "-m", "redup", "scan", "."])
+    if kind == "docs":
+        return shlex.join(["test", "-s", "docs/README.md"])
+    raise ValueError(f"unknown ticket kind: {kind}")
 
 
 def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -46,7 +61,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"- [ ] AC-02: Zero redundant utility implementations introduced.\n\n"
                 f"## Verification\n"
                 f"```sh\n"
-                f"git status --porcelain && pytest -q || npm test\n"
+                f"{verification_command('discovery', topic, proj_name)}\n"
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
@@ -75,7 +90,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"- [ ] AC-02: All unit and integration tests pass with exit code 0.\n\n"
                 f"## Verification\n"
                 f"```sh\n"
-                f"python3 -m redup check --threshold 0.85\n"
+                f"{verification_command('refactor', topic, proj_name)}\n"
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
@@ -105,7 +120,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"- [ ] AC-02: Troubleshooting and error handling runbook verified.\n\n"
                 f"## Verification\n"
                 f"```sh\n"
-                f"test -f docs/ARCHITECTURE.md || test -d docs/FEATURE\n"
+                f"{verification_command('docs', topic, proj_name)}\n"
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
@@ -113,8 +128,8 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
             ),
             "priority": "medium",
             "status": "todo",
-            "tier": "hygiene",
-            "labels": ["docs", "wellmanifest-docs", "koru-autonomous", "tier:hygiene"],
+            "tier": "reuse",
+            "labels": ["docs", "wellmanifest-docs", "koru-autonomous", "tier:reuse"],
             "satisfied_when": "Documentation conforms to wellmanifest/docs Compact v2 standard.",
             "created_at": now_str,
             "source": "wellmanifest/reuse"
@@ -124,13 +139,8 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
     canonical_tickets: Dict[str, Any] = {}
     for t in tasks:
         tid = f"REUSE-{t['id'].upper()}"
-        script_cmd = "git status --porcelain"
-        if "redup" in t["labels"]:
-            script_cmd = "python3 -m redup scan ."
-        elif "docs" in t["labels"]:
-            script_cmd = "test -f docs/ARCHITECTURE.md || test -d docs/FEATURE"
-        elif "discovery" in t["labels"]:
-            script_cmd = "PYTHONPATH=/home/tom/github/semcod/search/src python3 -m subactor_search ask 'tauri' --json || true"
+        kind = next(k for k in ("discovery", "refactor", "docs") if t["id"].endswith("_" + k))
+        script_cmd = verification_command(kind, topic, proj_name)
 
         canonical_tickets[tid] = {
             "id": tid,
