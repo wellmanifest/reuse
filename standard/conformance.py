@@ -7,7 +7,10 @@ Validates repository compliance with reuse rules (REUSE-001..006).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -95,6 +98,72 @@ def _has_sprint(sprints_dir: Path) -> bool:
     return False
 
 
+RECEIPT_PATH = Path(".reuse") / "redup-receipt.json"
+RECEIPT_SCHEMA = "wellmanifest.reuse-scan-receipt/v1"
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+_REVISION = re.compile(r"[0-9a-f]{40}")
+
+
+def _git(target: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(target), *args], capture_output=True, text=True, timeout=30)
+
+
+def evaluate_scan_receipt(target: Path) -> Dict[str, Any]:
+    """Validate REUSE-002 scan evidence; any missing/stale/invalid input is not a pass.
+
+    The receipt binds a scan to a git revision that must be an ancestor of HEAD and to
+    the sha256 of every scanned file as it exists now, so edits after the scan make it
+    stale. Producer authentication is NOT verified here (reported as such).
+    """
+    def verdict(status: str, reason: str, **extra: Any) -> Dict[str, Any]:
+        return {"passed": status == "verified", "status": status, "reason": reason,
+                "producer_authenticated": False, **extra}
+
+    path = target / RECEIPT_PATH
+    if not path.is_file():
+        return verdict("unverified", "no scan receipt")
+    try:
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return verdict("invalid", "receipt is not readable JSON")
+    if not isinstance(receipt, dict) or receipt.get("schema") != RECEIPT_SCHEMA:
+        return verdict("invalid", "wrong receipt schema")
+    tool = receipt.get("tool")
+    if not (isinstance(tool, dict) and all(isinstance(tool.get(k), str) and tool[k].strip() for k in ("name", "version"))):
+        return verdict("invalid", "tool name/version required")
+    revision = receipt.get("revision")
+    if not isinstance(revision, str) or not _REVISION.fullmatch(revision):
+        return verdict("invalid", "revision must be a 40-hex git commit")
+    scanned = receipt.get("scanned")
+    if not isinstance(scanned, list) or not scanned:
+        return verdict("invalid", "scanned file digests required")
+    findings = receipt.get("findings")
+    if not (isinstance(findings, dict) and all(type(findings.get(k)) is int and findings[k] >= 0
+                                               for k in ("clone_groups", "unmitigated"))):
+        return verdict("invalid", "findings.clone_groups and findings.unmitigated must be non-negative integers")
+    root = target.resolve()
+    for entry in scanned:
+        rel = entry.get("path") if isinstance(entry, dict) else None
+        digest = entry.get("sha256") if isinstance(entry, dict) else None
+        if not isinstance(rel, str) or not isinstance(digest, str) or not _SHA256.fullmatch(digest):
+            return verdict("invalid", "each scanned entry needs path and sha256")
+        file = (root / rel).resolve()
+        if not file.is_relative_to(root) or not file.is_file():
+            return verdict("stale", f"scanned file missing or outside project: {rel}")
+        if hashlib.sha256(file.read_bytes()).hexdigest() != digest:
+            return verdict("stale", f"scanned file changed after scan: {rel}")
+    try:
+        exists = _git(target, "cat-file", "-e", f"{revision}^{{commit}}").returncode == 0
+        ancestor = exists and _git(target, "merge-base", "--is-ancestor", revision, "HEAD").returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return verdict("unverified", "git revision could not be observed")
+    if not ancestor:
+        return verdict("stale", "receipt revision is not an ancestor of HEAD")
+    if findings["unmitigated"] > 0:
+        return verdict("failed", "unmitigated clone groups remain", findings=findings)
+    return verdict("verified", "revision- and digest-bound scan with no unmitigated clones", findings=findings)
+
+
 def run_conformance(target_dir: Path) -> ConformanceResult:
     """Check bounded content evidence; do not certify unobserved enforcement."""
     result = ConformanceResult(target_dir)
@@ -123,12 +192,11 @@ def run_conformance(target_dir: Path) -> ConformanceResult:
         {"has_runbooks": has_runbooks, "standard_enforcement_verified": False},
     )
 
-    # No trusted scan adapter is bound yet. Eligibility and file presence cannot
-    # establish that duplication was measured or that findings were mitigated.
+    scan = evaluate_scan_receipt(target_dir)
     result.add_check(
-        "REUSE-002", "Duplication & Clone Awareness", False,
-        "Unverified: no validated, revision-bound redup scan evidence adapter",
-        {"path": str(target_dir), "status": "unverified"},
+        "REUSE-002", "Duplication & Clone Awareness", scan["passed"],
+        f"{scan['status'].capitalize()}: {scan['reason']}",
+        {"path": str(target_dir), **scan},
     )
     return result
 

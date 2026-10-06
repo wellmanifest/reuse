@@ -75,3 +75,87 @@ def test_malformed_nonempty_planfile_is_not_evidence(tmp_path):
     (tmp_path / '.planfile/sprints/current.yaml').write_text('sprint: [broken')
     checks = {check['code']: check for check in run_conformance(tmp_path).checks}
     assert checks['REUSE-004']['passed'] is False
+
+
+# --- REUSE-002 revision- and digest-bound scan receipts -------------------------
+import hashlib
+import subprocess
+
+from standard.conformance import RECEIPT_PATH, RECEIPT_SCHEMA, evaluate_scan_receipt
+
+
+def _repo(tmp_path):
+    def git(*a):
+        return subprocess.run(["git", "-C", str(tmp_path), *a], check=True, capture_output=True, text=True).stdout.strip()
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    (tmp_path / "mod.py").write_text("print('x')\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "init")
+    return git, git("rev-parse", "HEAD")
+
+
+def _receipt(tmp_path, rev, **overrides):
+    revision = rev
+    digest = hashlib.sha256((tmp_path / "mod.py").read_bytes()).hexdigest()
+    value = {"schema": RECEIPT_SCHEMA, "tool": {"name": "redup", "version": "1.0"}, "revision": revision,
+             "scanned": [{"path": "mod.py", "sha256": digest}],
+             "findings": {"clone_groups": 0, "unmitigated": 0}}
+    value.update(overrides)
+    (tmp_path / RECEIPT_PATH).parent.mkdir(exist_ok=True)
+    (tmp_path / RECEIPT_PATH).write_text(json.dumps(value))
+
+
+def test_valid_receipt_verifies_but_does_not_authenticate_producer(tmp_path):
+    _, rev = _repo(tmp_path)
+    _receipt(tmp_path, rev)
+    verdict = evaluate_scan_receipt(tmp_path)
+    assert verdict["status"] == "verified" and verdict["passed"] is True
+    assert verdict["producer_authenticated"] is False
+
+
+def test_missing_receipt_is_unverified(tmp_path):
+    _repo(tmp_path)
+    assert evaluate_scan_receipt(tmp_path)["status"] == "unverified"
+
+
+def test_scanned_file_changed_after_scan_is_stale(tmp_path):
+    _, rev = _repo(tmp_path)
+    _receipt(tmp_path, rev)
+    (tmp_path / "mod.py").write_text("print('changed')\n")
+    assert evaluate_scan_receipt(tmp_path)["status"] == "stale"
+
+
+def test_unknown_or_unrelated_revision_is_stale(tmp_path):
+    _repo(tmp_path)
+    _receipt(tmp_path, "0" * 40)
+    assert evaluate_scan_receipt(tmp_path)["status"] == "stale"
+
+
+def test_unmitigated_clones_fail(tmp_path):
+    _, rev = _repo(tmp_path)
+    _receipt(tmp_path, rev, findings={"clone_groups": 2, "unmitigated": 1})
+    verdict = evaluate_scan_receipt(tmp_path)
+    assert verdict["status"] == "failed" and verdict["passed"] is False
+
+
+def test_invalid_receipts_never_pass(tmp_path):
+    _, rev = _repo(tmp_path)
+    for bad in ({"schema": "other"}, {"revision": "abc"}, {"scanned": []}, {"tool": {}},
+                {"findings": {"clone_groups": -1, "unmitigated": 0}},
+                {"scanned": [{"path": "../outside", "sha256": "a" * 64}]},
+                {"scanned": [{"path": "mod.py", "sha256": "nothex"}]}):
+        _receipt(tmp_path, rev, **bad)  # overrides replace valid fields
+        assert evaluate_scan_receipt(tmp_path)["passed"] is False, bad
+    (tmp_path / RECEIPT_PATH).write_text("{not json")
+    assert evaluate_scan_receipt(tmp_path)["status"] == "invalid"
+
+
+def test_run_conformance_reuse_002_follows_receipt(tmp_path):
+    _, rev = _repo(tmp_path)
+    check = {c["code"]: c for c in run_conformance(tmp_path).checks}["REUSE-002"]
+    assert check["passed"] is False
+    _receipt(tmp_path, rev)
+    check = {c["code"]: c for c in run_conformance(tmp_path).checks}["REUSE-002"]
+    assert check["passed"] is True and check["details"]["status"] == "verified"
