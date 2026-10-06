@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "schema": "wellmanifest.reuse-tool-bindings/v1",
-  "description": "Deterministic mapping of tools and methodologies for discovering, analyzing, deduplicating, modularizing, and reusing packages and code across the ~/github/* workspace.",
+  "description": "Deterministic mapping of tools and methodologies for discovering, analyzing, deduplicating, modularizing, and reusing packages and code across user workspaces.",
   "bindings": [
     {
       "code": "REUSE-DISCOVER-001",
@@ -9,8 +9,8 @@
       "phase": "discovery",
       "tool": "semcod/search",
       "binary": "subactor-search",
-      "command": "PYTHONPATH=/home/tom/github/semcod/search/src python3 -m subactor_search ask \"<query>\" --json",
-      "description": "Performs local, zero-LLM-cost, high-speed SQLite FTS5 search across all ~240+ repositories in ~/github/ to locate existing capabilities, intents, and dependencies before authoring new components.",
+      "command": "subactor-search ask \"<query>\" --json",
+      "description": "Performs local, zero-LLM-cost, high-speed SQLite FTS5 search across repositories in the workspace to locate existing capabilities, intents, and dependencies before authoring new components.",
       "evidenceRequired": "Search result list of candidate repositories or confirmation of novelty"
     },
     {
@@ -19,7 +19,7 @@
       "phase": "topology",
       "tool": "semcod/monag",
       "binary": "monag",
-      "command": "PYTHONPATH=/home/tom/github/semcod/monag/src python3 -m monag status",
+      "command": "monag status",
       "description": "Analyzes cross-repository topologies, drift between primary checkouts, active agent processes, and planfile ticket backlogs across the workspace.",
       "evidenceRequired": "Monag workspace snapshot and drift status"
     },

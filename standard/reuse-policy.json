@@ -16,7 +16,7 @@
       "code": "REUSE-002",
       "name": "Duplication & Clone Detection",
       "severity": "HIGH",
-      "statement": "Repositories MUST be analyzed for AST and block duplication using semcod/redup. Internal clone groups with >= 30 lines and >= 0.85 similarity must have an active refactoring plan or modularization ticket.",
+      "statement": "Repositories MUST be analyzed for AST and block duplication using semcod/redup. Internal clone groups with >= 10 lines and >= 0.80 similarity must have an active refactoring plan or modularization ticket.",
       "thresholds": {
         "min_lines": 10,
         "similarity_threshold": 0.80,
