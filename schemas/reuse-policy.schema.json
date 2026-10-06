@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/wellmanifest/reuse/schemas/reuse-policy.schema.json",
+  "type": "object",
+  "required": ["schema", "version", "rules"],
+  "properties": {
+    "schema": {"const": "wellmanifest.reuse-policy/v1"},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "rules": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "severity", "statement", "remediation"],
+        "properties": {
+          "code": {"type": "string", "pattern": "^REUSE-\\d{3}$"},
+          "name": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]},
+          "statement": {"type": "string", "minLength": 1},
+          "remediation": {"type": "string", "minLength": 1},
+          "thresholds": {
+            "type": "object",
+            "required": ["min_lines", "similarity_threshold", "max_unmitigated_duplicate_groups"],
+            "properties": {
+              "min_lines": {"type": "integer", "minimum": 1},
+              "similarity_threshold": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+              "max_unmitigated_duplicate_groups": {"type": "integer", "minimum": 0}
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}

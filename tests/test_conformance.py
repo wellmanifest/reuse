@@ -159,3 +159,61 @@ def test_run_conformance_reuse_002_follows_receipt(tmp_path):
     _receipt(tmp_path, rev)
     check = {c["code"]: c for c in run_conformance(tmp_path).checks}["REUSE-002"]
     assert check["passed"] is True and check["details"]["status"] == "verified"
+
+
+# --- JSON Schema validation with negative fixtures (also run under python -O) ----
+import copy
+import shutil
+
+import pytest
+
+
+def _standard_copy(tmp_path):
+    root = Path(__file__).resolve().parent.parent
+    (tmp_path / "standard").mkdir()
+    for name in ("reuse-policy.json", "tool-bindings.json"):
+        shutil.copy(root / "standard" / name, tmp_path / "standard" / name)
+    shutil.copytree(root / "schemas", tmp_path / "schemas")
+    return tmp_path
+
+
+def _mutate(tmp_path, filename, edit):
+    path = tmp_path / "standard" / filename
+    data = json.loads(path.read_text())
+    edit(data)
+    path.write_text(json.dumps(data))
+
+
+def test_schema_copy_baseline_is_valid(tmp_path):
+    assert check_schema_files(_standard_copy(tmp_path)) is True
+
+
+@pytest.mark.parametrize("filename,edit", [
+    ("reuse-policy.json", lambda d: d["rules"].pop()),
+    ("reuse-policy.json", lambda d: d["rules"][1].update(code=d["rules"][0]["code"])),
+    ("reuse-policy.json", lambda d: d["rules"][0].update(severity="URGENT")),
+    ("reuse-policy.json", lambda d: d["rules"][0].update(code="RULE-1")),
+    ("reuse-policy.json", lambda d: d["rules"][1]["thresholds"].update(similarity_threshold=1.5)),
+    ("reuse-policy.json", lambda d: d["rules"][1]["thresholds"].update(min_lines=0)),
+    ("reuse-policy.json", lambda d: d["rules"][1]["thresholds"].pop("max_unmitigated_duplicate_groups")),
+    ("reuse-policy.json", lambda d: d.update(schema="wrong")),
+    ("reuse-policy.json", lambda d: d["rules"][0].pop("statement")),
+    ("tool-bindings.json", lambda d: d["bindings"].pop()),
+    ("tool-bindings.json", lambda d: d["bindings"][1].update(code=d["bindings"][0]["code"])),
+    ("tool-bindings.json", lambda d: d["bindings"][0].pop("command")),
+    ("tool-bindings.json", lambda d: d["bindings"][0].update(command="")),
+    ("tool-bindings.json", lambda d: d.update(schema="wrong")),
+])
+def test_invalid_standard_files_are_rejected(tmp_path, filename, edit):
+    root = _standard_copy(tmp_path)
+    _mutate(root, filename, edit)
+    assert check_schema_files(root) is False
+
+
+def test_missing_or_corrupt_schema_inputs_are_rejected(tmp_path):
+    root = _standard_copy(tmp_path)
+    (root / "standard" / "tool-bindings.json").write_text("{broken")
+    assert check_schema_files(root) is False
+    shutil.rmtree(root / "schemas")
+    assert check_schema_files(root) is False
+
