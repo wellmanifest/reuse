@@ -1,6 +1,6 @@
 # Wellmanifest Reuse (`wellmanifest/reuse@v1`)
 
-Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across the `~/github/*` workspace.
+Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across user workspaces.
 
 [![Standard: Wellmanifest Reuse](https://img.shields.io/badge/Standard-wellmanifest%2Freuse-blue.svg)](#)
 [![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](#)
@@ -53,7 +53,7 @@ The machine-readable specification is defined in [`standard/reuse-policy.json`](
 * **`REUSE-001` (Search Before Generate)**:
   Before generating a new utility module, CLI tool, or service component from scratch, the author or autonomous agent MUST query the local workspace index (`subactor-search ask "<concept>"`) for existing implementations.
 * **`REUSE-002` (Duplication & Clone Detection)**:
-  Repositories MUST be analyzed for AST and block duplication using `semcod/redup`. Internal clone groups with >= 30 lines and >= 0.85 similarity must have an active refactoring plan.
+  Repositories MUST be analyzed for AST and block duplication using `semcod/redup`. Internal clone groups with >= 10 lines and >= 0.80 similarity must have an active refactoring plan.
 * **`REUSE-003` (Continuous Modularization & Extraction)**:
   When identical or near-identical logic is identified across 2 or more repositories via `redup compare`, the logic MUST be considered for extraction into an independent package (under `packages/<name>` or a dedicated domain repo in `wellmanifest/*` or `semcod/*`) with pinned interfaces.
 * **`REUSE-004` (Structured Planfile Decomposition)**:
@@ -79,10 +79,10 @@ python3 standard/conformance.py --check-schema
 
 ### Generate Planfile Tasks for Target Project
 ```bash
-python3 scripts/generate_reuse_plan.py --project /home/tom/github/digitaltwin-run/dock2tauri --topic "tauri"
+python3 scripts/generate_reuse_plan.py --project /path/to/target/project --topic "tauri"
 ```
 
 ### Dispatching to Koru Autonomous Loop
 ```bash
-python3 -m koru --queue --project /home/tom/github/digitaltwin-run/dock2tauri --actor koru
+python3 -m koru --queue --project /path/to/target/project --actor koru
 ```

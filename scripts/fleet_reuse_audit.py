@@ -97,7 +97,8 @@ def audit_repository(repo_path: Path) -> Dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fleet-wide Wellmanifest Reuse & Docs Auditor")
-    parser.add_argument("--root", type=Path, default=Path("/home/tom/github"), help="Workspace root")
+    default_root = Path(os.environ.get("WORKSPACE_ROOT") or (Path.home() / "github"))
+    parser.add_argument("--root", type=Path, default=default_root, help="Workspace root")
     parser.add_argument("--orgs", type=str, default="digitaltwin-run,paxlet-com,wellmanifest,semcod", help="Comma-separated orgs to audit")
     parser.add_argument("--limit", type=int, default=10, help="Max repos to inspect")
     parser.add_argument("--apply-plan", action="store_true", help="Generate planfile reuse & docs tasks for failing repos")
