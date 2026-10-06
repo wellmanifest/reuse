@@ -18,7 +18,7 @@ def test_create_reuse_tasks():
     tiers = {t["tier"] for t in tasks}
     assert "reuse" in tiers
     assert "refactor" in tiers
-    assert "hygiene" in tiers
+    assert tiers <= {"reuse", "refactor"}  # REUSE-005
 
     for t in tasks:
         assert "koru-autonomous" in t["labels"]
@@ -135,3 +135,51 @@ def test_concurrent_runs_do_not_duplicate(tmp_path):
         pool.map(_worker, [(str(sprint), str(tmp_path / "proj"))] * 12)
     data = yaml.safe_load(sprint.read_text())
     assert len(data["tasks"]) == 3 and len(data["sprint"]["tickets"]) == 3
+
+
+# --- honest, topic-aware verification commands ----------------------------------
+import re
+import shlex
+
+import pytest
+
+from scripts.generate_reuse_plan import verification_command
+
+
+def _scripts(tmp_path, topic):
+    tasks, tickets = create_reuse_plan_data(tmp_path / "proj", topic=topic)
+    return tasks, {t["id"].rsplit("_", 1)[1].lower(): t for t in tickets.values()}
+
+
+def test_discovery_honors_topic_and_never_hardcodes_tauri(tmp_path):
+    _, by_kind = _scripts(tmp_path, "pdf rendering")
+    argv = shlex.split(by_kind["discovery"]["inputs"]["script"])
+    assert argv == ["subactor-search", "ask", "pdf rendering", "--json"]
+    _, by_kind = _scripts(tmp_path, "")
+    assert shlex.split(by_kind["discovery"]["inputs"]["script"])[2] == "proj"
+
+
+def test_shell_metacharacters_in_topic_stay_one_argument(tmp_path):
+    _, by_kind = _scripts(tmp_path, "x'; rm -rf / #")
+    argv = shlex.split(by_kind["discovery"]["inputs"]["script"])
+    assert argv[:2] == ["subactor-search", "ask"] and argv[2] == "x'; rm -rf / #" and argv[3] == "--json"
+
+
+def test_no_failure_masking_or_machine_specific_paths(tmp_path):
+    tasks, by_kind = _scripts(tmp_path, "topic")
+    texts = [t["inputs"]["script"] for t in by_kind.values()] + [t["description"] for t in tasks]
+    for text in texts:
+        assert "|| true" not in text and "npm test" not in text and "/home/" not in text
+
+
+def test_description_verification_equals_executed_command(tmp_path):
+    tasks, by_kind = _scripts(tmp_path, "topic")
+    for task in tasks:
+        kind = task["id"].rsplit("_", 1)[1]
+        block = re.search(r"## Verification\n```sh\n(.*?)\n```", task["description"], re.S).group(1)
+        assert block == by_kind[kind]["inputs"]["script"] == verification_command(kind, "topic", "proj")
+
+
+def test_unknown_kind_is_rejected():
+    with pytest.raises(ValueError):
+        verification_command("other", "", "p")
