@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import fcntl
+import hashlib
 import json
 import os
+import tempfile
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -23,12 +25,14 @@ import yaml
 def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Generate both planfile tasks list and canonical sprint tickets dict."""
     now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    ts = int(time.time())
     proj_name = project_path.name
+    # Stable finding identity: same project+topic always yields the same IDs, so repeats and
+    # concurrent runs collapse onto existing tickets instead of adding new ones.
+    key = hashlib.sha256(f"{proj_name}\0{topic}".encode()).hexdigest()[:8]
 
     tasks = [
         {
-            "id": f"reuse_{ts}_1",
+            "id": f"reuse_{key}_discovery",
             "title": f"[{proj_name}] reuse(discovery): Identify existing {topic or proj_name} utilities in ~/github/*",
             "description": (
                 f"## Context\n"
@@ -46,7 +50,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
-                f"- Mark done via: `planfile ticket done reuse_{ts}_1`\n"
+                f"- Mark done via: `planfile ticket done reuse_{key}_discovery`\n"
             ),
             "priority": "high",
             "status": "todo",
@@ -57,7 +61,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
             "source": "wellmanifest/reuse"
         },
         {
-            "id": f"reuse_{ts}_2",
+            "id": f"reuse_{key}_refactor",
             "title": f"[{proj_name}] refactor(redup): Eliminate internal duplicate code and AST clones",
             "description": (
                 f"## Context\n"
@@ -75,7 +79,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
-                f"- Mark done via: `planfile ticket done reuse_{ts}_2`\n"
+                f"- Mark done via: `planfile ticket done reuse_{key}_refactor`\n"
             ),
             "priority": "medium",
             "status": "todo",
@@ -86,7 +90,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
             "source": "wellmanifest/reuse"
         },
         {
-            "id": f"reuse_{ts}_3",
+            "id": f"reuse_{key}_docs",
             "title": f"[{proj_name}] docs(wellmanifest-docs): Enforce Compact v2 documentation and runbooks",
             "description": (
                 f"## Context\n"
@@ -105,7 +109,7 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
                 f"```\n\n"
                 f"## Planfile & Koru Autonomous Handoff\n"
                 f"- Driven by: `koru autonomous`\n"
-                f"- Mark done via: `planfile ticket done reuse_{ts}_3`\n"
+                f"- Mark done via: `planfile ticket done reuse_{key}_docs`\n"
             ),
             "priority": "medium",
             "status": "todo",
@@ -155,67 +159,81 @@ def create_reuse_plan_data(project_path: Path, topic: str = "") -> tuple[List[Di
     return tasks, canonical_tickets
 
 
+class PlanfileError(RuntimeError):
+    """Existing planfile state cannot be read safely; nothing is modified."""
+
+
+def _default_sprint() -> Dict[str, Any]:
+    return {"schema": "planfile.sprint/v1",
+            "sprint": {"id": "current", "name": "Current Sprint", "status": "active", "tickets": {}},
+            "tasks": []}
+
+
+def _load_sprint(sprint_path: Path) -> Dict[str, Any]:
+    if not sprint_path.exists():
+        return _default_sprint()
+    try:
+        loaded = yaml.safe_load(sprint_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise PlanfileError(f"unreadable sprint file preserved untouched: {sprint_path}: {exc}") from exc
+    if not isinstance(loaded, dict):
+        raise PlanfileError(f"sprint file is not a mapping, preserved untouched: {sprint_path}")
+    sprint = loaded.get("sprint")
+    if not isinstance(sprint, dict) or not isinstance(sprint.get("tickets", {}), dict):
+        raise PlanfileError(f"sprint structure is unrecognised, preserved untouched: {sprint_path}")
+    sprint.setdefault("tickets", {})
+    if not isinstance(loaded.get("tasks", []), list):
+        raise PlanfileError(f"sprint tasks are not a list, preserved untouched: {sprint_path}")
+    loaded.setdefault("tasks", [])
+    return loaded
+
+
 def update_planfile_sprint(sprint_path: Path, new_tasks: List[Dict[str, Any]], canonical_tickets: Dict[str, Any], dry_run: bool = False) -> int:
-    """Safely append or merge new reuse tasks into sprint file in canonical planfile format."""
-    sprint_data: Dict[str, Any] = {
-        "schema": "planfile.sprint/v1",
-        "sprint": {
-            "id": "current",
-            "name": "Current Sprint",
-            "status": "active",
-            "tickets": {}
-        },
-        "tasks": []
-    }
-    
-    if sprint_path.exists():
-        try:
-            with open(sprint_path, "r", encoding="utf-8") as f:
-                loaded = yaml.safe_load(f)
-                if isinstance(loaded, dict):
-                    sprint_data = loaded
-        except Exception as exc:
-            print(f"Warning: could not parse existing sprint file: {exc}", file=sys.stderr)
+    """Merge reuse tasks under an exclusive lock and write atomically.
 
-    # Normalize sprint structure
-    if not isinstance(sprint_data.get("sprint"), dict):
-        sprint_data["sprint"] = {
-            "id": "current",
-            "name": "Current Sprint",
-            "status": "active",
-            "tickets": {}
-        }
-    elif "tickets" not in sprint_data["sprint"] or not isinstance(sprint_data["sprint"]["tickets"], dict):
-        sprint_data["sprint"]["tickets"] = {}
-
-    existing_tickets = sprint_data["sprint"]["tickets"]
-    for tid, tdata in canonical_tickets.items():
-        if tid not in existing_tickets:
-            existing_tickets[tid] = tdata
-
-    existing_tasks = sprint_data.get("tasks", [])
-    if not isinstance(existing_tasks, list):
-        existing_tasks = []
-    existing_titles = {t.get("title") for t in existing_tasks if isinstance(t, dict)}
-    
-    added_count = 0
-    for task in new_tasks:
-        if task["title"] not in existing_titles:
-            existing_tasks.append(task)
+    Existing tickets/tasks are never replaced; malformed existing state aborts with
+    PlanfileError and is left byte-for-byte intact.
+    """
+    sprint_path.parent.mkdir(parents=True, exist_ok=True) if not dry_run else None
+    lock_path = sprint_path.with_name(sprint_path.name + ".lock")
+    lock_file = open(lock_path, "a+") if not dry_run else None
+    try:
+        if lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
+        sprint_data = _load_sprint(sprint_path)
+        tickets = sprint_data["sprint"]["tickets"]
+        for tid, tdata in canonical_tickets.items():
+            tickets.setdefault(tid, tdata)
+        tasks = sprint_data["tasks"]
+        known = {(t.get("id"), t.get("title")) for t in tasks if isinstance(t, dict)}
+        known_ids = {i for i, _ in known}
+        known_titles = {t for _, t in known}
+        added_count = 0
+        for task in new_tasks:
+            if task["id"] in known_ids or task["title"] in known_titles:
+                continue
+            tasks.append(task)
             added_count += 1
 
-    sprint_data["tasks"] = existing_tasks
+        if dry_run:
+            print(f"[DRY-RUN] Would append {added_count} reuse tasks to {sprint_path}")
+            return added_count
 
-    if dry_run:
-        print(f"[DRY-RUN] Would append {added_count} reuse tasks to {sprint_path}")
+        fd, tmp_name = tempfile.mkstemp(dir=sprint_path.parent, prefix=sprint_path.name + ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                yaml.dump(sprint_data, handle, sort_keys=False, default_flow_style=False, allow_unicode=True)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, sprint_path)
+        except BaseException:
+            Path(tmp_name).unlink(missing_ok=True)
+            raise
+        print(f"✅ Merged reuse tickets into {sprint_path} ({added_count} new tasks)")
         return added_count
-
-    sprint_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(sprint_path, "w", encoding="utf-8") as f:
-        yaml.dump(sprint_data, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
-
-    print(f"✅ Successfully written {len(canonical_tickets)} canonical tickets to {sprint_path}")
-    return added_count
+    finally:
+        if lock_file:
+            lock_file.close()
 
 
 def main() -> int:
@@ -234,7 +252,11 @@ def main() -> int:
     tasks, tickets = create_reuse_plan_data(project_dir, topic=args.topic)
 
     sprint_path = project_dir / ".planfile" / "sprints" / "current.yaml"
-    added = update_planfile_sprint(sprint_path, tasks, tickets, dry_run=args.dry_run)
+    try:
+        update_planfile_sprint(sprint_path, tasks, tickets, dry_run=args.dry_run)
+    except PlanfileError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
