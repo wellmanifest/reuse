@@ -65,7 +65,13 @@ def test_invalid_schema_rejected_under_optimized_python(tmp_path):
     (tmp_path / 'standard').mkdir()
     for name in ('reuse-policy.json', 'tool-bindings.json'):
         (tmp_path / 'standard' / name).write_text('{}')
-    script = 'from pathlib import Path; from standard.conformance import check_schema_files; import sys; sys.exit(0 if not check_schema_files(Path(sys.argv[1])) else 1)'
+    standard_root = Path(__file__).resolve().parent.parent
+    script = (
+        'import sys; from pathlib import Path; '
+        f'sys.path.insert(0, {str(standard_root)!r}); '
+        'from standard.conformance import check_schema_files; '
+        'sys.exit(0 if not check_schema_files(Path(sys.argv[1])) else 1)'
+    )
     run = subprocess.run([sys.executable, '-O', '-c', script, str(tmp_path)], capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr
 
