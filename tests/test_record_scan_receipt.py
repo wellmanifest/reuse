@@ -84,3 +84,20 @@ def test_cli_execution_exits_zero(tmp_path: Path):
     out = json.loads(res.stdout)
     assert out["verdict"]["passed"] is True
     assert out["verdict"]["status"] == "verified"
+
+
+def test_fleet_reuse_audit_record_receipt(tmp_path: Path):
+    org_dir = tmp_path / "wellmanifest"
+    repo_dir = org_dir / "sample-project"
+    repo_dir.mkdir(parents=True)
+    _init_git_repo(repo_dir)
+
+    script = Path(__file__).resolve().parent.parent / "scripts" / "fleet_reuse_audit.py"
+    res = subprocess.run(
+        [sys.executable, str(script), "--root", str(tmp_path), "--orgs", "wellmanifest", "--record-receipt", "--json"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, res.stdout + res.stderr
+    assert (repo_dir / RECEIPT_PATH).is_file()
+
