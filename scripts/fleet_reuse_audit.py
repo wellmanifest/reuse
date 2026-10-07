@@ -19,6 +19,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from scripts.generate_reuse_plan import create_reuse_plan_data, update_planfile_sprint
+from scripts.record_scan_receipt import record_scan_receipt
 from standard.conformance import run_conformance
 
 
@@ -35,6 +36,8 @@ def is_fork(path: Path) -> bool:
             text=True,
             timeout=5
         )
+        if res.returncode != 0:
+            return False
         url = res.stdout.strip()
         # Non-fork user organizations
         user_orgs = (
@@ -102,6 +105,7 @@ def main() -> int:
     parser.add_argument("--orgs", type=str, default="digitaltwin-run,paxlet-com,wellmanifest,semcod", help="Comma-separated orgs to audit")
     parser.add_argument("--limit", type=int, default=10, help="Max repos to inspect")
     parser.add_argument("--apply-plan", action="store_true", help="Generate planfile reuse & docs tasks for failing repos")
+    parser.add_argument("--record-receipt", action="store_true", help="Record and verify .reuse/redup-receipt.json for repositories")
     parser.add_argument("--run-koru", action="store_true", help="Execute one autonomous koru step per repository")
     parser.add_argument("--json", action="store_true", help="Output JSON results")
     args = parser.parse_args()
@@ -122,6 +126,18 @@ def main() -> int:
             tasks, tickets = create_reuse_plan_data(repo, topic=repo.name)
             sprint_file = repo / ".planfile" / "sprints" / "current.yaml"
             update_planfile_sprint(sprint_file, tasks, tickets)
+
+        if args.record_receipt:
+            try:
+                rec_data, verdict = record_scan_receipt(repo)
+                if verdict["passed"]:
+                    audit_data = audit_repository(repo)
+                    results[-1] = audit_data
+                    print(f"   📜 Scan receipt recorded and verified ({verdict['status']})")
+                else:
+                    print(f"   ⚠️ Scan receipt failed verification: {verdict.get('reason')}")
+            except Exception as exc:
+                print(f"   ⚠️ Scan receipt recording failed for {repo.name}: {exc}")
 
         if args.run_koru:
             try:
