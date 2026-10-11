@@ -4,6 +4,8 @@ All notable changes to the `wellmanifest/reuse` standard will be documented in t
 
 ## [0.1.1] - 2026-10-11
 
+- Standard-source checks now validate the pinned canonical SSOT semantic rules, fail closed on missing/tampered validator code, and declare parity gates for vendored copies.
+
 - Shared source routing distinguishes verified standard projections from duplication debt — [profile](docs/information/standard-source-reuse.md).
 
 ## [0.1.0] - 2026-10-03

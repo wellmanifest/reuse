@@ -3,7 +3,7 @@
   "schema": "wellmanifest.docs/document/v1",
   "id": "standard-source-reuse",
   "kind": "information",
-  "version": 1,
+  "version": 2,
   "title": "Reużytek kanonicznych źródeł standardów",
   "status": "proposed",
   "owner": "wellmanifest/reuse",
@@ -44,7 +44,7 @@ Profil obejmuje 17 przypiętych źródeł i 24 kopie parsera lifecycle, recovery
 <!-- docs:section evidence -->
 ## Dowody
 
-[Katalog](../../standard/standard-sources.ssot.json) używa `wellmanifest.ssot/decision/v1`. [Lock](../../standard/ssot.lock.json) wiąże dokładną rewizję i SHA-256 schematu. [Testy](../../tests/test_standard_sources.py) sprawdzają drift, pin, symlinki, ścieżki i nieśledzone kopie.
+[Katalog](../../standard/standard-sources.ssot.json) używa `wellmanifest.ssot/decision/v1`. [Lock](../../standard/ssot.lock.json) wiąże dokładną rewizję i SHA-256 schematu oraz kanonicznego walidatora semantycznego SSOT. [Testy](../../tests/test_standard_sources.py) sprawdzają drift, pin, semantykę, integralność kodu walidatora, symlinki, ścieżki i nieśledzone kopie.
 
 <!-- docs:section content -->
 ## Reguły współdzielenia
@@ -55,7 +55,7 @@ Profil obejmuje 17 przypiętych źródeł i 24 kopie parsera lifecycle, recovery
 - Schematy zasobów wellm i metafile są projekcjami pakietów; recovery jest projekcją właściciela session-recovery.
 - Podobna nazwa VALIDATE nie jest dowodem identycznej operacji. Aliasy jednego checkoutu nie są dwoma repozytoriami.
 
-Uruchom [checker](../../scripts/check_standard_sources.py) z jawnym `--workspace` i `--ssot-root`. Odczytuje przypięte obiekty Git oraz śledzone pliki konsumentów. Kod 0 oznacza zgodność wskazanych kopii; 1 oznacza drift; 2 oznacza brak lub niepoprawny kontrakt.
+Uruchom [checker](../../scripts/check_standard_sources.py) z jawnym `--workspace` i `--ssot-root`. Odczytuje przypięte obiekty Git oraz śledzone pliki konsumentów. Najpierw sprawdza schemat oraz semantykę przez przypięty walidator właściciela SSOT. Kopie zasobów są klasyfikowane jako `vendored_copy` z jawną bramką parity, a nie jako podwójne checkouty. Kod 0 oznacza zgodność kontraktu i wskazanych kopii; 1 oznacza drift; 2 oznacza brak lub niepoprawny kontrakt.
 
 <!-- docs:section limitations -->
 ## Ograniczenia

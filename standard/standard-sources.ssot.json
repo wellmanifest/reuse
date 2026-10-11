@@ -1,7 +1,7 @@
 {
   "schema": "wellmanifest.ssot/decision/v1",
   "id": "wellmanifest-standard-sources",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "purpose": "Shared canonical source routing for verified standard distribution copies; advisory only.",
   "context": {
     "subject": "wellmanifest-standard-audit",
@@ -25,7 +25,8 @@
     "onChange": "bump_pin",
     "forbid": [
       "fork_logic_into_consumer",
-      "delete_generated_mirror"
+      "delete_generated_mirror",
+      "couple_standalone_to_foreign_monorepo"
     ]
   },
   "decisions": [
@@ -58,11 +59,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Domain validators already pin the shared lifecycle parser; domain profiles remain separately owned."
+      "rationale": "Domain validators already pin the shared lifecycle parser; domain profiles remain separately owned.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "session-recovery-conformance",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/session-recovery@e04f789ea78cd6f04de870cd23eec85c53b04a49/standard/conformance.py",
         "path": "wellmanifest/session-recovery/standard/conformance.py"
@@ -82,11 +87,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "session-recovery-session-recovery",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/session-recovery@e04f789ea78cd6f04de870cd23eec85c53b04a49/standard/session-recovery.schema.json",
         "path": "wellmanifest/session-recovery/standard/session-recovery.schema.json"
@@ -106,11 +115,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "metafile-metafile-event",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/metafile@b58e028c4542309d8bd5744402b40ee18568bb22/schemas/metafile.event.schema.json",
         "path": "wellmanifest/metafile/schemas/metafile.event.schema.json"
@@ -130,11 +143,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "metafile-metafile-v1",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/metafile@b58e028c4542309d8bd5744402b40ee18568bb22/schemas/metafile.v1.schema.json",
         "path": "wellmanifest/metafile/schemas/metafile.v1.schema.json"
@@ -154,11 +171,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-artifact-metadata",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/artifact-metadata.schema.json",
         "path": "wellmanifest/wellm/schemas/artifact-metadata.schema.json"
@@ -178,11 +199,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-conversion-report",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/conversion-report.schema.json",
         "path": "wellmanifest/wellm/schemas/conversion-report.schema.json"
@@ -202,11 +227,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-governance-build-report",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/governance-build-report.schema.json",
         "path": "wellmanifest/wellm/schemas/governance-build-report.schema.json"
@@ -226,11 +255,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-governance-project",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/governance-project.schema.json",
         "path": "wellmanifest/wellm/schemas/governance-project.schema.json"
@@ -250,11 +283,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-llm-benchmark-report",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/llm-benchmark-report.schema.json",
         "path": "wellmanifest/wellm/schemas/llm-benchmark-report.schema.json"
@@ -274,11 +311,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-llm-benchmark",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/llm-benchmark.schema.json",
         "path": "wellmanifest/wellm/schemas/llm-benchmark.schema.json"
@@ -298,11 +339,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-projects",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/projects.schema.json",
         "path": "wellmanifest/wellm/schemas/projects.schema.json"
@@ -322,11 +367,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-publication-plan",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/publication-plan.schema.json",
         "path": "wellmanifest/wellm/schemas/publication-plan.schema.json"
@@ -346,11 +395,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-publication-receipt",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/publication-receipt.schema.json",
         "path": "wellmanifest/wellm/schemas/publication-receipt.schema.json"
@@ -370,11 +423,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-semantic-diff",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/semantic-diff.schema.json",
         "path": "wellmanifest/wellm/schemas/semantic-diff.schema.json"
@@ -394,11 +451,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-source-map",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/source-map.schema.json",
         "path": "wellmanifest/wellm/schemas/source-map.schema.json"
@@ -418,11 +479,15 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     },
     {
       "id": "wellm-version-registry",
-      "kind": "generated_mirror",
+      "kind": "vendored_copy",
       "canonical": {
         "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/version-registry.schema.json",
         "path": "wellmanifest/wellm/schemas/version-registry.schema.json"
@@ -442,7 +507,11 @@
         "delete_generated_mirror",
         "fork_logic_into_consumer"
       ],
-      "rationale": "Distribution projection with one canonical authoring source."
+      "rationale": "Distribution projection with one canonical authoring source.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     }
   ],
   "questions": []

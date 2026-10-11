@@ -32,22 +32,37 @@ def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], stderr=subprocess.PIPE, text=True, timeout=30).strip()
 
 
+def pinned_bytes(root: Path, revision: str, path: str, digest: str, artifact: str) -> bytes:
+    content = bounded_path(root, path).read_bytes()
+    if hashlib.sha256(content).hexdigest() != digest:
+        raise ValueError(f"SSOT {artifact} differs from its immutable pin")
+    pinned = subprocess.check_output(["git", "-C", str(root), "show", f"{revision}:{path}"],
+                                     stderr=subprocess.PIPE, timeout=30)
+    if pinned != content:
+        raise ValueError(f"SSOT {artifact} revision differs from its content pin")
+    return content
+
+
 def audit(workspace: Path, ssot_root: Path, catalogue: Path = ROOT / "standard/standard-sources.ssot.json",
           lock_path: Path = ROOT / "standard/ssot.lock.json") -> dict:
     workspace = workspace.resolve(strict=True)
     lock = json.loads(lock_path.read_text())
-    schema_bytes = bounded_path(ssot_root, lock["path"]).read_bytes()
-    if hashlib.sha256(schema_bytes).hexdigest() != lock["sha256"]:
-        raise ValueError("SSOT schema differs from its immutable pin")
-    pinned_bytes = subprocess.check_output(["git", "-C", str(ssot_root), "show",
-                                            f'{lock["sourceRevision"]}:{lock["path"]}'],
-                                           stderr=subprocess.PIPE, timeout=30)
-    if pinned_bytes != schema_bytes:
-        raise ValueError("SSOT schema revision differs from its content pin")
+    schema_bytes = pinned_bytes(ssot_root, lock["sourceRevision"], lock["path"], lock["sha256"], "schema")
     schema = json.loads(schema_bytes)
     Draft202012Validator.check_schema(schema)
     document = json.loads(catalogue.read_text())
     Draft202012Validator(schema).validate(document)
+    # Execute exactly the verified upstream bytes, not an independently copied
+    # interpretation of SSOT's semantic rules or an unverified working module.
+    validator = lock["validator"]
+    validator_bytes = pinned_bytes(ssot_root, lock["sourceRevision"], validator["path"],
+                                   validator["sha256"], "validator")
+    namespace = {"__name__": "wellmanifest_ssot_pinned",
+                 "__file__": str(bounded_path(ssot_root, validator["path"]))}
+    exec(compile(validator_bytes, namespace["__file__"], "exec"), namespace)
+    findings = namespace["validate_decision"](document)
+    if findings:
+        raise ValueError("SSOT semantic validation failed: " + json.dumps([f.as_dict() for f in findings]))
     ids = [d["id"] for d in document["decisions"]]
     if len(ids) != len(set(ids)) or not ids:
         raise ValueError("catalogue must contain unique decisions")
@@ -87,7 +102,8 @@ def audit(workspace: Path, ssot_root: Path, catalogue: Path = ROOT / "standard/s
                             "observedSha256": digest, "status": "verified" if digest == expected else "drift"})
     return {"schema": "wellmanifest.reuse/standard-source-report/v1", "readOnly": True,
             "authority": "none", "catalogueSha256": hashlib.sha256(catalogue.read_bytes()).hexdigest(),
-            "schemaSha256": lock["sha256"], "checkedCopies": len(checked),
+            "schemaSha256": lock["sha256"], "validatorSha256": validator["sha256"],
+            "semanticValidationPassed": True, "checkedCopies": len(checked),
             "passed": bool(checked) and all(c["status"] == "verified" for c in checked), "checks": checked}
 
 

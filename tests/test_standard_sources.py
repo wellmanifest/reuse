@@ -33,13 +33,19 @@ def fixture(tmp_path):
     consumer = tmp_path / "wellmanifest/consumer"
     repository(consumer, {"schema.json": '{"type":"string"}\n'})
     ssot = tmp_path / "wellmanifest/ssot"
-    # Minimal test contract isolates integrity checks; the real pinned SSOT
-    # contract is exercised by the live catalogue command, without vendoring it.
+    # Minimal fixture isolates integrity and invocation; the real pinned SSOT
+    # schema and semantic validator are exercised by the live catalogue command.
     schema = '{"type":"object","required":["decisions"]}'
-    schema_revision = repository(ssot, {"schema.json": schema})
+    validator = ('from types import SimpleNamespace\n'
+                 'def validate_decision(document):\n'
+                 '    if document.get("fixtureSemanticFailure"):\n'
+                 '        return [SimpleNamespace(as_dict=lambda: {"code": "FIXTURE-SEMANTIC"})]\n'
+                 '    return []\n')
+    schema_revision = repository(ssot, {"schema.json": schema, "validator.py": validator})
     lock = tmp_path / "lock.json"
     lock.write_text(json.dumps({"path": "schema.json", "sourceRevision": schema_revision,
-                               "sha256": hashlib.sha256(schema.encode()).hexdigest()}))
+                               "sha256": hashlib.sha256(schema.encode()).hexdigest(),
+                               "validator": {"path": "validator.py", "sha256": hashlib.sha256(validator.encode()).hexdigest()}}))
     decision = {"id": "core-schema", "kind": "vendored_copy",
                 "canonical": {"ref": f"repo://wellmanifest/core@{revision}/schema.json",
                               "path": "wellmanifest/core/schema.json"},
@@ -119,4 +125,34 @@ def test_unknown_relationship_is_not_silently_excluded(fixture):
 def test_inconsistent_canonical_path_is_rejected(fixture):
     edit_catalogue(fixture, lambda d: d["decisions"][0]["canonical"].update(path="wellmanifest/other/schema.json"))
     with pytest.raises(ValueError, match="disagree"):
+        audit(*fixture)
+
+
+def test_semantic_findings_fail_even_when_schema_and_parity_pass(fixture):
+    edit_catalogue(fixture, lambda d: d.update(fixtureSemanticFailure=True))
+    with pytest.raises(ValueError, match="FIXTURE-SEMANTIC"):
+        audit(*fixture)
+
+
+def test_changed_validator_pin_fails_before_execution(fixture):
+    (fixture[1] / "validator.py").write_text("raise AssertionError('must not execute')")
+    with pytest.raises(ValueError, match="validator differs from its immutable pin"):
+        audit(*fixture)
+
+
+def test_validator_content_must_belong_to_pinned_git_revision(fixture):
+    content = "raise AssertionError('must not execute')\n"
+    (fixture[1] / "validator.py").write_text(content)
+    lock = json.loads(fixture[3].read_text())
+    lock["validator"]["sha256"] = hashlib.sha256(content.encode()).hexdigest()
+    fixture[3].write_text(json.dumps(lock))
+    with pytest.raises(ValueError, match="validator revision differs"):
+        audit(*fixture)
+
+
+def test_missing_validator_lock_fails_closed(fixture):
+    lock = json.loads(fixture[3].read_text())
+    del lock["validator"]
+    fixture[3].write_text(json.dumps(lock))
+    with pytest.raises(KeyError, match="validator"):
         audit(*fixture)
