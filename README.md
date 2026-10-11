@@ -3,7 +3,7 @@
 Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across user workspaces.
 
 [![Standard: Wellmanifest Reuse](https://img.shields.io/badge/Standard-wellmanifest%2Freuse-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](#)
 [![Autonomous Delivery: Koru Ready](https://img.shields.io/badge/Autonomous_Delivery-Koru_Ready-success.svg)](#)
 
 ---
@@ -86,3 +86,15 @@ python3 scripts/generate_reuse_plan.py --project /path/to/target/project --topic
 ```bash
 python3 -m koru --queue --project /path/to/target/project --actor koru
 ```
+
+## Canonical standard sources
+
+`REUSE-003` adopts the existing `wellmanifest.ssot/decision/v1` classification contract. The [shared source catalogue](standard/standard-sources.ssot.json) routes 24 distribution copies to their existing canonical owners; the [profile](docs/information/standard-source-reuse.md) explains immutable source parity and domain boundaries.
+
+```bash
+python3 scripts/check_standard_sources.py \
+  --workspace /path/to/github \
+  --ssot-root /path/to/github/wellmanifest/ssot
+```
+
+The checker reads local pinned Git objects and files, performs no network or write effects, and returns nonzero for drift or incomplete evidence. It does not replace adoption updaters, domain validation or independent publication.

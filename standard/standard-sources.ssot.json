@@ -1,0 +1,449 @@
+{
+  "schema": "wellmanifest.ssot/decision/v1",
+  "id": "wellmanifest-standard-sources",
+  "version": "1.0.0",
+  "purpose": "Shared canonical source routing for verified standard distribution copies; advisory only.",
+  "context": {
+    "subject": "wellmanifest-standard-audit",
+    "languages": [
+      "Python",
+      "JSON"
+    ],
+    "packaging": [
+      "domain-pack",
+      "managed-projection"
+    ],
+    "analyzer": {
+      "present": true,
+      "kind": "redup",
+      "treatAsDebtUntilInterview": false
+    }
+  },
+  "policy": {
+    "kind": "pin_policy",
+    "edit": "upstream",
+    "onChange": "bump_pin",
+    "forbid": [
+      "fork_logic_into_consumer",
+      "delete_generated_mirror"
+    ]
+  },
+  "decisions": [
+    {
+      "id": "lifecycle-parser",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/lifecycle@4b5e131a670afb46ca87291479fed7c0fefcf370/src/lifecycle.py",
+        "path": "wellmanifest/lifecycle/src/lifecycle.py"
+      },
+      "trees": [
+        "wellmanifest/git-lifecycle/standard/lifecycle.py",
+        "wellmanifest/ticket-lifecycle/standard/lifecycle.py",
+        "wellmanifest/legal-lifecycle/standard/lifecycle.py",
+        "wellmanifest/product-lifecycle/standard/lifecycle.py",
+        "wellmanifest/saas-lifecycle/standard/lifecycle.py",
+        "wellmanifest/twin-lifecycle/standard/lifecycle.py",
+        "wellmanifest/new-project/subprojects/git-lifecycle/lifecycle.py",
+        "wellmanifest/new-project/subprojects/ticket-lifecycle/lifecycle.py"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Domain validators already pin the shared lifecycle parser; domain profiles remain separately owned."
+    },
+    {
+      "id": "session-recovery-conformance",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/session-recovery@e04f789ea78cd6f04de870cd23eec85c53b04a49/standard/conformance.py",
+        "path": "wellmanifest/session-recovery/standard/conformance.py"
+      },
+      "trees": [
+        "wellmanifest/new-project/subprojects/session-recovery/conformance.py"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "session-recovery-session-recovery",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/session-recovery@e04f789ea78cd6f04de870cd23eec85c53b04a49/standard/session-recovery.schema.json",
+        "path": "wellmanifest/session-recovery/standard/session-recovery.schema.json"
+      },
+      "trees": [
+        "wellmanifest/new-project/subprojects/session-recovery/session-recovery.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "metafile-metafile-event",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/metafile@b58e028c4542309d8bd5744402b40ee18568bb22/schemas/metafile.event.schema.json",
+        "path": "wellmanifest/metafile/schemas/metafile.event.schema.json"
+      },
+      "trees": [
+        "wellmanifest/metafile/src/wellmanifest_metafile/schemas/metafile.event.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "metafile-metafile-v1",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/metafile@b58e028c4542309d8bd5744402b40ee18568bb22/schemas/metafile.v1.schema.json",
+        "path": "wellmanifest/metafile/schemas/metafile.v1.schema.json"
+      },
+      "trees": [
+        "wellmanifest/metafile/src/wellmanifest_metafile/schemas/metafile.v1.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-artifact-metadata",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/artifact-metadata.schema.json",
+        "path": "wellmanifest/wellm/schemas/artifact-metadata.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/artifact-metadata.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-conversion-report",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/conversion-report.schema.json",
+        "path": "wellmanifest/wellm/schemas/conversion-report.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/conversion-report.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-governance-build-report",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/governance-build-report.schema.json",
+        "path": "wellmanifest/wellm/schemas/governance-build-report.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/governance-build-report.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-governance-project",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/governance-project.schema.json",
+        "path": "wellmanifest/wellm/schemas/governance-project.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/governance-project.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-llm-benchmark-report",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/llm-benchmark-report.schema.json",
+        "path": "wellmanifest/wellm/schemas/llm-benchmark-report.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/llm-benchmark-report.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-llm-benchmark",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/llm-benchmark.schema.json",
+        "path": "wellmanifest/wellm/schemas/llm-benchmark.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/llm-benchmark.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-projects",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/projects.schema.json",
+        "path": "wellmanifest/wellm/schemas/projects.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/projects.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-publication-plan",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/publication-plan.schema.json",
+        "path": "wellmanifest/wellm/schemas/publication-plan.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/publication-plan.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-publication-receipt",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/publication-receipt.schema.json",
+        "path": "wellmanifest/wellm/schemas/publication-receipt.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/publication-receipt.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-semantic-diff",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/semantic-diff.schema.json",
+        "path": "wellmanifest/wellm/schemas/semantic-diff.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/semantic-diff.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-source-map",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/source-map.schema.json",
+        "path": "wellmanifest/wellm/schemas/source-map.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/source-map.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    },
+    {
+      "id": "wellm-version-registry",
+      "kind": "generated_mirror",
+      "canonical": {
+        "ref": "repo://wellmanifest/wellm@9a972f74919e0fe88a507a8eb5b75a320eb2dbcb/schemas/version-registry.schema.json",
+        "path": "wellmanifest/wellm/schemas/version-registry.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellm/src/wellmanifest/resources/version-registry.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection with one canonical authoring source."
+    }
+  ],
+  "questions": []
+}

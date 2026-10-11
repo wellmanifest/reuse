@@ -3,7 +3,7 @@
   "schema": "wellmanifest.reuse-policy/v1",
   "title": "Wellmanifest Reuse Policy Standard",
   "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "rules": [
     {
       "code": "REUSE-001",
@@ -19,7 +19,7 @@
       "statement": "Repositories MUST be analyzed for AST and block duplication using semcod/redup. Internal clone groups with >= 10 lines and >= 0.80 similarity must have an active refactoring plan or modularization ticket.",
       "thresholds": {
         "min_lines": 10,
-        "similarity_threshold": 0.80,
+        "similarity_threshold": 0.8,
         "max_unmitigated_duplicate_groups": 2
       },
       "remediation": "Run `redup scan .` and decompose identified clones into planfile refactoring tasks."
@@ -28,8 +28,8 @@
       "code": "REUSE-003",
       "name": "Continuous Modularization & Extraction",
       "severity": "HIGH",
-      "statement": "When identical or near-identical logic is identified across 2 or more repositories via `redup compare`, the logic MUST be considered for extraction into an independent package (under `packages/<name>` or a dedicated domain repo in wellmanifest/* or semcod/*) with pinned interfaces.",
-      "remediation": "Decompose into an extraction ticket: isolate function/class, write unit tests, export entry point."
+      "statement": "When identical or near-identical logic is identified across 2 or more repositories via `redup compare`, the logic MUST be considered for extraction into an independent package (under `packages/<name>` or a dedicated domain repo in wellmanifest/* or semcod/*) with pinned interfaces. Before treating cross-repository standard copies as refactoring debt, classify their relationship using wellmanifest.ssot/decision/v1 and bind each canonical source to a full Git revision. Reuse an existing HOME before creating a new standard. Generated mirrors and vendored copies are retained when exact source parity is verified; changed or unknown copies remain review findings. Shared command names alone do not prove shared semantics.",
+      "remediation": "Decompose into an extraction ticket: isolate function/class, write unit tests, export entry point. Use the shared standard/standard-sources.ssot.json profile and scripts/check_standard_sources.py with an explicitly supplied workspace and pinned SSOT schema root. Update the canonical owner, then distribute through the owning adoption mechanism; never edit a managed copy to hide drift."
     },
     {
       "code": "REUSE-004",
