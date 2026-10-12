@@ -7,7 +7,14 @@ from scripts.reuse_orchestrator import (
     CloneDetector,
     ContractGenerator,
     IntentTicketDispatcher,
+    infer_workstream,
 )
+
+
+def test_infer_workstream():
+    assert infer_workstream(["src/app.py", "tests/test_app.py"]) == "application"
+    assert infer_workstream(["pyproject.toml", "src/core.py"]) == "integration"
+    assert infer_workstream([".governance/policy.json", "standards/check.py"]) == "governance"
 
 
 def test_code_logic_analyzer(tmp_path):
@@ -53,6 +60,11 @@ def test_contract_generator():
 
 
 def test_intent_ticket_dispatcher(tmp_path):
+    # Test next ticket id inference
+    assert IntentTicketDispatcher.find_next_ticket_id(tmp_path) == "ticket-001"
+    (tmp_path / "project" / "ticket-005").mkdir(parents=True)
+    assert IntentTicketDispatcher.find_next_ticket_id(tmp_path) == "ticket-006"
+
     ticket_dir = IntentTicketDispatcher.write_ticket_files(
         target_repo=tmp_path,
         ticket_id="ticket-099",
@@ -60,6 +72,7 @@ def test_intent_ticket_dispatcher(tmp_path):
             ticket_id="ticket-099",
             summary="Deduplicate twin auth logic",
             target_repo=tmp_path,
+            allowed_paths=["src/twin.py", "tests/test_twin.py"],
         ),
     )
     assert ticket_dir.is_dir()
@@ -68,4 +81,10 @@ def test_intent_ticket_dispatcher(tmp_path):
     data = json.loads(intent_file.read_text())
     assert data["schema"] == "new-project.intent/v3"
     assert data["ticket"] == "ticket-099"
-    assert (ticket_dir / "README.md").is_file()
+    assert data["workstream"] == "application"
+
+    readme_file = ticket_dir / "README.md"
+    assert readme_file.is_file()
+    readme_text = readme_file.read_text()
+    assert "- **Status**: IN_PROGRESS" in readme_text
+    assert "- **Workflow state**: EDIT" in readme_text
