@@ -3,7 +3,7 @@
   "schema": "wellmanifest.reuse-policy/v1",
   "title": "Wellmanifest Reuse Policy Standard",
   "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "rules": [
     {
       "code": "REUSE-001",
@@ -51,6 +51,34 @@
       "severity": "HIGH",
       "statement": "All non-fork, user-authored repositories MUST enforce wellmanifest/docs (Compact v2: max 120 lines / 600 words per doc, clear docs/ index) and wellmanifest/logs (errors/{CODE}.md runbooks, structured JSONL logs). Documentation auto-sync SHOULD leverage semcod/code2docs.",
       "remediation": "Initialize docs/ with compact markdown specs and add error runbooks for all handled exit codes."
+    },
+    {
+      "code": "REUSE-007",
+      "name": "Semantic AST & Logic Profiling",
+      "severity": "HIGH",
+      "statement": "Code analysis before modularization or deduplication MUST generate structural AST and function logic profiles (via semcod/code2logic) to identify identical signatures, schemas, and control flows across modules.",
+      "remediation": "Run `python3 -m code2logic <target> -f toon --does` to extract AST function models and logic specifications before refactoring."
+    },
+    {
+      "code": "REUSE-008",
+      "name": "Canonical Contract & DSL Generation",
+      "severity": "HIGH",
+      "statement": "Extracted shared data structures, configurations, and API interfaces MUST have a canonical DSL schema (via autogrammar/code2schema and data2dsl) committed alongside the shared library to prevent schema divergence.",
+      "remediation": "Generate canonical JSON/DSL schemas using `code2schema` or `data2dsl` and validate with `diff-dsl`."
+    },
+    {
+      "code": "REUSE-009",
+      "name": "Sequential Intent Ticket Dispatch",
+      "severity": "HIGH",
+      "statement": "Multi-repository reuse and deduplication migrations MUST be decomposed into sequential intent tickets governed by subactor/intent (`intent.json` / `wellmanifest.intent/v3`) with explicit budgets, allowed paths, and lease fencing.",
+      "remediation": "Generate intent specifications using `scripts/generate_reuse_intent.py` and coordinate sequential delivery through Subactor or Koru."
+    },
+    {
+      "code": "REUSE-010",
+      "name": "Behavior Parity & Verification",
+      "severity": "CRITICAL",
+      "statement": "Every deduplication and shared library extraction MUST provide deterministic automated verification (via unit tests and autogrammar/testql scenarios) asserting 100% behavioral parity before and after extraction.",
+      "remediation": "Author TestQL verification scenarios or unit test suites exercising the shared contract against both the extracted source and the calling projects."
     }
   ]
 }

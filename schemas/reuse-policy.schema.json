@@ -8,7 +8,7 @@
     "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
     "rules": {
       "type": "array",
-      "minItems": 6,
+      "minItems": 10,
       "items": {
         "type": "object",
         "required": ["code", "name", "severity", "statement", "remediation"],

@@ -1,0 +1,425 @@
+{
+  "schema": "wellmanifest.reuse-ast-profile/v1",
+  "project": "reuse",
+  "timestamp": "2026-10-12T13:18:56.014343+00:00",
+  "modules": [
+    {
+      "file": "scripts/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "file": "scripts/check_standard_sources.py",
+      "sha256": "a9d3be662a3938982ff8ad1a53088bf8504f74b1622fe8961d36c58da68fd2f4",
+      "functions": [
+        {
+          "name": "bounded_path",
+          "args": [
+            "root",
+            "relative"
+          ],
+          "docstring": "Reject traversal and symlinks before reading any referenced artifact.",
+          "lineno": 18,
+          "end_lineno": 28
+        },
+        {
+          "name": "git",
+          "args": [
+            "root"
+          ],
+          "docstring": "",
+          "lineno": 31,
+          "end_lineno": 32
+        },
+        {
+          "name": "pinned_bytes",
+          "args": [
+            "root",
+            "revision",
+            "path",
+            "digest",
+            "artifact"
+          ],
+          "docstring": "",
+          "lineno": 35,
+          "end_lineno": 43
+        },
+        {
+          "name": "audit",
+          "args": [
+            "workspace",
+            "ssot_root",
+            "catalogue",
+            "lock_path"
+          ],
+          "docstring": "",
+          "lineno": 46,
+          "end_lineno": 107
+        },
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 110,
+          "end_lineno": 123
+        }
+      ],
+      "classes": []
+    },
+    {
+      "file": "scripts/fleet_reuse_audit.py",
+      "sha256": "77aa4ce4091905b663677ea03f19299e9b272f447b559b1a5e79b546711adc74",
+      "functions": [
+        {
+          "name": "is_git_repo",
+          "args": [
+            "path"
+          ],
+          "docstring": "",
+          "lineno": 26,
+          "end_lineno": 27
+        },
+        {
+          "name": "is_fork",
+          "args": [
+            "path"
+          ],
+          "docstring": "Check git remote to verify if repository is an upstream third-party fork.",
+          "lineno": 30,
+          "end_lineno": 69
+        },
+        {
+          "name": "discover_repositories",
+          "args": [
+            "root",
+            "orgs"
+          ],
+          "docstring": "Discover user-authored candidate repositories.",
+          "lineno": 72,
+          "end_lineno": 87
+        },
+        {
+          "name": "audit_repository",
+          "args": [
+            "repo_path"
+          ],
+          "docstring": "Run conformance audit on one repository.",
+          "lineno": 90,
+          "end_lineno": 98
+        },
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 101,
+          "end_lineno": 154
+        }
+      ],
+      "classes": []
+    },
+    {
+      "file": "scripts/generate_reuse_plan.py",
+      "sha256": "d3f87dc5d36b156067723bb7f0b5d7854fb3b3b89b9cf7954e4e69f6934064fd",
+      "functions": [
+        {
+          "name": "verification_command",
+          "args": [
+            "kind",
+            "topic",
+            "proj_name"
+          ],
+          "docstring": "Single source for each ticket's verification: shown in the description AND executed.\n\nNo ``|| true``/``|| fallback``: a failing discovery or scan must fail the ticket.",
+          "lineno": 26,
+          "end_lineno": 37
+        },
+        {
+          "name": "create_reuse_plan_data",
+          "args": [
+            "project_path",
+            "topic"
+          ],
+          "docstring": "Generate both planfile tasks list and canonical sprint tickets dict.",
+          "lineno": 40,
+          "end_lineno": 169
+        },
+        {
+          "name": "_default_sprint",
+          "args": [],
+          "docstring": "",
+          "lineno": 176,
+          "end_lineno": 179
+        },
+        {
+          "name": "_load_sprint",
+          "args": [
+            "sprint_path"
+          ],
+          "docstring": "",
+          "lineno": 182,
+          "end_lineno": 198
+        },
+        {
+          "name": "update_planfile_sprint",
+          "args": [
+            "sprint_path",
+            "new_tasks",
+            "canonical_tickets",
+            "dry_run"
+          ],
+          "docstring": "Merge reuse tasks under an exclusive lock and write atomically.\n\nExisting tickets/tasks are never replaced; malformed existing state aborts with\nPlanfileError and is left byte-for-byte intact.",
+          "lineno": 201,
+          "end_lineno": 246
+        },
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 249,
+          "end_lineno": 270
+        }
+      ],
+      "classes": [
+        {
+          "name": "PlanfileError",
+          "methods": [],
+          "docstring": "Existing planfile state cannot be read safely; nothing is modified.",
+          "lineno": 172
+        }
+      ]
+    },
+    {
+      "file": "scripts/record_scan_receipt.py",
+      "sha256": "54c74880a7227b1b8a94dc771ec0f10e0f4e7ed3d32a8f8e25335be39edb3abb",
+      "functions": [
+        {
+          "name": "get_git_head",
+          "args": [
+            "target"
+          ],
+          "docstring": "Retrieve 40-hex git commit SHA of HEAD.",
+          "lineno": 35,
+          "end_lineno": 48
+        },
+        {
+          "name": "check_mitigation_in_planfile",
+          "args": [
+            "target"
+          ],
+          "docstring": "Check if .planfile has an active task or sprint covering deduplication / reuse.",
+          "lineno": 51,
+          "end_lineno": 70
+        },
+        {
+          "name": "scan_with_redup",
+          "args": [
+            "target",
+            "min_lines",
+            "min_sim"
+          ],
+          "docstring": "Run redup scan on target project.\nReturns (tool_version, scanned_file_entries, clone_group_count).",
+          "lineno": 73,
+          "end_lineno": 110
+        },
+        {
+          "name": "fallback_scan",
+          "args": [
+            "target"
+          ],
+          "docstring": "Fallback scanner using git ls-files when redup is not directly importable.",
+          "lineno": 113,
+          "end_lineno": 139
+        },
+        {
+          "name": "generate_receipt_data",
+          "args": [
+            "target",
+            "min_lines",
+            "min_sim",
+            "force_mitigated"
+          ],
+          "docstring": "Generate in-memory receipt dictionary.",
+          "lineno": 142,
+          "end_lineno": 172
+        },
+        {
+          "name": "write_receipt",
+          "args": [
+            "target",
+            "receipt_data"
+          ],
+          "docstring": "Atomically write receipt file.",
+          "lineno": 175,
+          "end_lineno": 186
+        },
+        {
+          "name": "record_scan_receipt",
+          "args": [
+            "target",
+            "min_lines",
+            "min_sim",
+            "force_mitigated"
+          ],
+          "docstring": "Record receipt and evaluate validity against conformance.",
+          "lineno": 189,
+          "end_lineno": 199
+        },
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 202,
+          "end_lineno": 237
+        }
+      ],
+      "classes": []
+    },
+    {
+      "file": "scripts/reuse_orchestrator.py",
+      "sha256": "829840f13767e6e62918f3f3afe2c82eeab7dd05df980ff1a5d092b0905d75f5",
+      "functions": [
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 285,
+          "end_lineno": 334
+        }
+      ],
+      "classes": [
+        {
+          "name": "CodeLogicAnalyzer",
+          "methods": [
+            "__init__",
+            "profile_python_file",
+            "profile_project",
+            "run_code2logic_if_available"
+          ],
+          "docstring": "Semantic AST and function logic profiler using semcod/code2logic or native AST fallback.",
+          "lineno": 27
+        },
+        {
+          "name": "CloneDetector",
+          "methods": [
+            "compare_projects"
+          ],
+          "docstring": "AST clone and cross-project duplicate detection via semcod/redup.",
+          "lineno": 102
+        },
+        {
+          "name": "ContractGenerator",
+          "methods": [
+            "generate_json_schema_from_pydantic_or_ast",
+            "generate_testql_scenario"
+          ],
+          "docstring": "Canonical DSL and Schema generator using autogrammar concepts.",
+          "lineno": 146
+        },
+        {
+          "name": "IntentTicketDispatcher",
+          "methods": [
+            "create_reuse_intent",
+            "write_ticket_files"
+          ],
+          "docstring": "Subactor intent contract generator for sequential reuse execution.",
+          "lineno": 182
+        }
+      ]
+    },
+    {
+      "file": "standard/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": []
+    },
+    {
+      "file": "standard/conformance.py",
+      "sha256": "eef52e7992f75c1ed4351eb663442157d6d0603525361b39f824907569829faa",
+      "functions": [
+        {
+          "name": "_unique",
+          "args": [
+            "values",
+            "label"
+          ],
+          "docstring": "",
+          "lineno": 49,
+          "end_lineno": 51
+        },
+        {
+          "name": "check_schema_files",
+          "args": [
+            "root"
+          ],
+          "docstring": "Validate policy and tool bindings against JSON Schemas.\n\nUses explicit exceptions (never ``assert``) so rejection is identical under ``python -O``.",
+          "lineno": 54,
+          "end_lineno": 80
+        },
+        {
+          "name": "_nonempty",
+          "args": [
+            "path"
+          ],
+          "docstring": "",
+          "lineno": 83,
+          "end_lineno": 87
+        },
+        {
+          "name": "_has_sprint",
+          "args": [
+            "sprints_dir"
+          ],
+          "docstring": "",
+          "lineno": 90,
+          "end_lineno": 102
+        },
+        {
+          "name": "_git",
+          "args": [
+            "target"
+          ],
+          "docstring": "",
+          "lineno": 111,
+          "end_lineno": 112
+        },
+        {
+          "name": "evaluate_scan_receipt",
+          "args": [
+            "target"
+          ],
+          "docstring": "Validate REUSE-002 scan evidence; any missing/stale/invalid input is not a pass.\n\nThe receipt binds a scan to a git revision that must be an ancestor of HEAD and to\nthe sha256 of every scanned file as it exists now, so edits after the scan make it\nstale. Producer authentication is NOT verified here (reported as such).",
+          "lineno": 115,
+          "end_lineno": 168
+        },
+        {
+          "name": "run_conformance",
+          "args": [
+            "target_dir"
+          ],
+          "docstring": "Check bounded content evidence; do not certify unobserved enforcement.",
+          "lineno": 171,
+          "end_lineno": 205
+        },
+        {
+          "name": "main",
+          "args": [],
+          "docstring": "",
+          "lineno": 208,
+          "end_lineno": 235
+        }
+      ],
+      "classes": [
+        {
+          "name": "ConformanceResult",
+          "methods": [
+            "__init__",
+            "add_check",
+            "to_dict"
+          ],
+          "docstring": "",
+          "lineno": 21
+        }
+      ]
+    }
+  ]
+}

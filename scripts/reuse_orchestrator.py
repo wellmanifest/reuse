@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+"""
+Reuse Orchestrator for Wellmanifest Reuse Standard (wellmanifest/reuse@v0.2.0).
+
+Coordinates multi-repository code discovery, AST clone detection (semcod/redup),
+semantic logic profiling (semcod/code2logic), canonical DSL contract generation
+(autogrammar/code2schema & data2dsl), and sequential intent ticket dispatching
+(subactor/intent & ticket-radar).
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import datetime
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+
+class CodeLogicAnalyzer:
+    """Semantic AST and function logic profiler using semcod/code2logic or native AST fallback."""
+
+    def __init__(self, project_path: Path):
+        self.project_path = project_path.resolve()
+
+    def profile_python_file(self, file_path: Path) -> Dict[str, Any]:
+        """Extract functions, classes, signatures, and docstrings via AST."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            tree = ast.parse(content, filename=str(file_path))
+        except Exception as exc:
+            return {"file": str(file_path), "error": str(exc), "functions": [], "classes": []}
+
+        functions = []
+        classes = []
+
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions.append({
+                    "name": node.name,
+                    "args": [arg.arg for arg in node.args.args],
+                    "docstring": ast.get_docstring(node) or "",
+                    "lineno": node.lineno,
+                    "end_lineno": getattr(node, "end_lineno", node.lineno),
+                })
+            elif isinstance(node, ast.ClassDef):
+                methods = [
+                    m.name for m in node.body if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef))
+                ]
+                classes.append({
+                    "name": node.name,
+                    "methods": methods,
+                    "docstring": ast.get_docstring(node) or "",
+                    "lineno": node.lineno,
+                })
+
+        return {
+            "file": str(file_path.relative_to(self.project_path)),
+            "sha256": hashlib.sha256(file_path.read_bytes()).hexdigest(),
+            "functions": functions,
+            "classes": classes,
+        }
+
+    def profile_project(self) -> Dict[str, Any]:
+        """Profile all Python files in the project."""
+        profiles = []
+        for py_path in sorted(self.project_path.rglob("*.py")):
+            rel = str(py_path.relative_to(self.project_path))
+            if any(part in rel for part in (".git", ".governance", "venv", ".venv", "tests", "standards", "__pycache__")):
+                continue
+            profiles.append(self.profile_python_file(py_path))
+        return {
+            "schema": "wellmanifest.reuse-ast-profile/v1",
+            "project": self.project_path.name,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "modules": profiles,
+        }
+
+    def run_code2logic_if_available(self, output_format: str = "toon") -> Optional[str]:
+        """Invoke semcod/code2logic if installed."""
+        try:
+            res = subprocess.run(
+                ["python3", "-m", "code2logic", str(self.project_path), "-f", output_format, "--stdout", "--does"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return None
+
+
+class CloneDetector:
+    """AST clone and cross-project duplicate detection via semcod/redup."""
+
+    @staticmethod
+    def compare_projects(project_a: Path, project_b: Path, threshold: float = 0.75, min_lines: int = 5) -> Dict[str, Any]:
+        """Run redup compare and return structured recommendation."""
+        cmd = [
+            "python3", "-m", "redup", "compare",
+            str(project_a), str(project_b),
+            "--threshold", str(threshold),
+            "--min-lines", str(min_lines),
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        output = res.stdout + res.stderr
+
+        # Extract metrics from output
+        shared_lines = 0
+        overlap_pct = 0.0
+        recommendation = "keep_separate"
+
+        for line in output.splitlines():
+            if "Shared LOC" in line:
+                m = re.search(r"(\d+)", line)
+                if m:
+                    shared_lines = int(m.group(1))
+            if "overlap" in line.lower():
+                m = re.search(r"(\d+)%", line)
+                if m:
+                    overlap_pct = float(m.group(1))
+            if "Recommendation:" in line:
+                parts = line.split("Recommendation:")
+                if len(parts) > 1:
+                    recommendation = parts[1].strip()
+
+        return {
+            "project_a": str(project_a),
+            "project_b": str(project_b),
+            "shared_loc": shared_lines,
+            "overlap_pct": overlap_pct,
+            "recommendation": recommendation,
+            "raw_output": output,
+        }
+
+
+class ContractGenerator:
+    """Canonical DSL and Schema generator using autogrammar concepts."""
+
+    @staticmethod
+    def generate_json_schema_from_pydantic_or_ast(module_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate canonical JSON schema for data structures defined in module profile."""
+        schema: Dict[str, Any] = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": f"wellmanifest://contracts/{module_profile.get('file', 'shared')}.schema.json",
+            "type": "object",
+            "title": f"Canonical Contract for {module_profile.get('file', 'shared')}",
+            "properties": {},
+            "definitions": {},
+        }
+        for cls in module_profile.get("classes", []):
+            cname = cls["name"]
+            schema["definitions"][cname] = {
+                "type": "object",
+                "title": cname,
+                "description": cls.get("docstring", ""),
+                "methods": cls.get("methods", []),
+            }
+        return schema
+
+    @staticmethod
+    def generate_testql_scenario(shared_module_name: str, functions: List[str]) -> str:
+        """Generate declarative TestQL behavioral scenario."""
+        steps = "\n".join(f"  - call: {fn}\n    assert: result is not None" for fn in functions)
+        return (
+            f"name: verify-reuse-parity-{shared_module_name}\n"
+            f"description: Behavioral parity assertion for extracted {shared_module_name}\n"
+            f"target: {shared_module_name}\n"
+            f"steps:\n{steps}\n"
+        )
+
+
+class IntentTicketDispatcher:
+    """Subactor intent contract generator for sequential reuse execution."""
+
+    @staticmethod
+    def create_reuse_intent(
+        ticket_id: str,
+        summary: str,
+        target_repo: Path,
+        source_repo: Optional[Path] = None,
+        allowed_paths: Optional[List[str]] = None,
+        complexity: str = "S",
+    ) -> Dict[str, Any]:
+        """Create a validated new-project.intent/v3 contract for reuse delivery."""
+        now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        paths = allowed_paths or [f"project/{ticket_id}/**", "src/**", "standards/**", ".reuse/**"]
+
+        # Determine git base sha
+        try:
+            head_sha = subprocess.check_output(
+                ["git", "-C", str(target_repo), "rev-parse", "HEAD"], text=True
+            ).strip()
+        except Exception:
+            head_sha = "0000000000000000000000000000000000000000"
+
+        return {
+            "schema": "new-project.intent/v3",
+            "ticket": ticket_id,
+            "summary": summary,
+            "workstream": "governance",
+            "classification": {
+                "kind": "REFACTOR",
+                "priority": "P2",
+                "origin": "wellmanifest/reuse",
+            },
+            "allowedPaths": paths,
+            "forbiddenPaths": [
+                "project/ticket-*/user-*.md",
+            ],
+            "stacks": [],
+            "dependsOn": [],
+            "conflictsWith": [],
+            "integrationTicket": None,
+            "delivery": {
+                "acceptedBaseSha": head_sha,
+                "targetBranch": "main",
+                "outcome": f"Deduplicate shared logic and establish clean reuse interface under REUSE-003.",
+                "nonGoals": [
+                    "No breaking API modifications without adapter",
+                    "No direct commit on primary main",
+                ],
+                "complexity": complexity,
+                "estimatedMinutes": 30,
+                "budgets": {
+                    "maxImplementationFiles": 5,
+                    "maxAffectedComponents": 2,
+                    "maxPublicInterfaceChanges": 0,
+                    "maxRuntimeDependencies": 0,
+                },
+                "architecture": {
+                    "status": "accepted",
+                    "decision": "Extract shared components into reusable module or canonical package; verify parity with unit tests.",
+                    "components": [{"name": "reuse", "paths": paths}],
+                    "responsibilityChanges": False,
+                    "interfaceChanges": [],
+                    "dataChanges": [],
+                    "ui": {"impact": "none", "states": [], "evidence": []},
+                    "rollback": "Revert to accepted base sha if verification checks fail.",
+                },
+                "runtimeDependencies": [],
+                "validation": [
+                    {
+                        "criterion": "AC-01",
+                        "commands": [
+                            "python3 -m unittest discover -s tests",
+                            "python3 standard/conformance.py --project .",
+                        ],
+                        "evidence": "Zero regressions on existing test suites and conformance pass.",
+                    }
+                ],
+            },
+        }
+
+    @staticmethod
+    def write_ticket_files(target_repo: Path, ticket_id: str, intent_data: Dict[str, Any]) -> Path:
+        """Write project/ticket-XXX/intent.json and README.md."""
+        ticket_dir = target_repo / "project" / ticket_id
+        ticket_dir.mkdir(parents=True, exist_ok=True)
+        intent_file = ticket_dir / "intent.json"
+        intent_file.write_text(json.dumps(intent_data, indent=2) + "\n")
+
+        readme_file = ticket_dir / "README.md"
+        if not readme_file.exists():
+            readme_file.write_text(
+                f"# Ticket {ticket_id}: {intent_data.get('summary')}\n\n"
+                f"Generated by Wellmanifest Reuse Standard (`wellmanifest/reuse@v0.2.0`).\n\n"
+                f"## Intent\n"
+                f"{intent_data.get('delivery', {}).get('outcome')}\n\n"
+                f"## Validation\n"
+                f"- [ ] AC-01: Regression test suite passing\n"
+            )
+        return ticket_dir
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Wellmanifest Reuse Orchestrator")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # scan
+    scan_p = subparsers.add_parser("scan", help="Scan project for AST profiles and clones")
+    scan_p.add_argument("project", type=Path, help="Target project path")
+
+    # compare
+    comp_p = subparsers.add_parser("compare", help="Compare two projects for duplication")
+    comp_p.add_argument("project_a", type=Path, help="First project path")
+    comp_p.add_argument("project_b", type=Path, help="Second project path")
+    comp_p.add_argument("--threshold", type=float, default=0.75, help="Similarity threshold")
+
+    # intent
+    intent_p = subparsers.add_parser("intent", help="Generate subactor reuse intent ticket")
+    intent_p.add_argument("--target", "-t", type=Path, required=True, help="Target repository")
+    intent_p.add_argument("--ticket-id", required=True, help="Ticket ID (e.g. ticket-020)")
+    intent_p.add_argument("--summary", required=True, help="Short summary of reuse work")
+
+    args = parser.parse_args()
+
+    if args.command == "scan":
+        analyzer = CodeLogicAnalyzer(args.project)
+        profile = analyzer.profile_project()
+        out_file = args.project / ".reuse" / "ast-profile.json"
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        out_file.write_text(json.dumps(profile, indent=2) + "\n")
+        print(f"✅ Generated AST profile with {len(profile['modules'])} modules at: {out_file}")
+        return 0
+
+    if args.command == "compare":
+        result = CloneDetector.compare_projects(args.project_a, args.project_b, threshold=args.threshold)
+        print(f"\n🔍 Comparison {args.project_a.name} ↔ {args.project_b.name}")
+        print(f"   Shared LOC (est): {result['shared_loc']}")
+        print(f"   Overlap: {result['overlap_pct']}%")
+        print(f"   Recommendation: {result['recommendation']}\n")
+        return 0
+
+    if args.command == "intent":
+        intent_data = IntentTicketDispatcher.create_reuse_intent(
+            ticket_id=args.ticket_id,
+            summary=args.summary,
+            target_repo=args.target,
+        )
+        tdir = IntentTicketDispatcher.write_ticket_files(args.target, args.ticket_id, intent_data)
+        print(f"✅ Created reuse intent ticket at: {tdir}")
+        return 0
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

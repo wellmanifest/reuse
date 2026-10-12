@@ -7,7 +7,7 @@
     "schema": {"const": "wellmanifest.reuse-tool-bindings/v1"},
     "bindings": {
       "type": "array",
-      "minItems": 8,
+      "minItems": 12,
       "items": {
         "type": "object",
         "required": ["code", "name", "phase", "tool", "command", "evidenceRequired"],

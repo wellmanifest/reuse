@@ -68,7 +68,7 @@
       "name": "governed-documentation-sync",
       "phase": "documentation",
       "tool": "wellmanifest/docs",
-      "companion": "semcod/code2docs",
+      "binary": "code2docs",
       "command": "python3 standard/docs_check.py --format v2",
       "description": "Enforces concise, structured documentation (Compact v2: 120 lines max, single topic) and automated API sync via code2docs for all non-fork user projects.",
       "evidenceRequired": "Canonical docs/ structure with index and valid markdown references"
@@ -82,6 +82,46 @@
       "command": "python3 standard/logs_check.py validate --root .",
       "description": "Requires append-only structured JSONL event logging and explicit runbooks in errors/{CODE}.md for every runtime failure mode.",
       "evidenceRequired": "errors/ catalog and conforming log schema"
+    },
+    {
+      "code": "REUSE-AST-009",
+      "name": "semantic-ast-logic-profiling",
+      "phase": "analysis",
+      "tool": "semcod/code2logic",
+      "binary": "code2logic",
+      "command": "python3 -m code2logic <target_dir> -f toon --does",
+      "description": "Extracts semantic AST function logic, intent, and signature models to evaluate functional equivalence across duplicated code blocks before extraction.",
+      "evidenceRequired": "TOON or YAML logic representation of target module functions and intents"
+    },
+    {
+      "code": "REUSE-DSL-010",
+      "name": "canonical-contract-and-dsl-generation",
+      "phase": "contract",
+      "tool": "autogrammar/code2schema",
+      "binary": "code2schema",
+      "command": "PYTHONPATH=/home/tom/github/autogrammar/code2schema python3 -m code2schema --source <module_path> --output <schema_path>",
+      "description": "Derives canonical JSON/DSL schemas from code implementations and models to guarantee interface stability and prevent drift across consuming projects.",
+      "evidenceRequired": "Committed canonical schema file in schemas/ and validation receipt"
+    },
+    {
+      "code": "REUSE-INTENT-011",
+      "name": "sequential-intent-ticket-dispatch",
+      "phase": "dispatch",
+      "tool": "subactor/intent-contract-dsl-runtime",
+      "binary": "subactor",
+      "command": "python3 scripts/generate_reuse_intent.py --project <repo> --source <source_repo> --target <target_repo>",
+      "description": "Generates structured intent contracts with explicit allowedPaths, blast radius, complexity classification, and step-by-step verification commands.",
+      "evidenceRequired": "Valid intent.json with immutable base SHA, allowed paths, and AC-01 verification"
+    },
+    {
+      "code": "REUSE-TESTQL-012",
+      "name": "behavior-parity-verification",
+      "phase": "verification",
+      "tool": "autogrammar/testql",
+      "binary": "testql",
+      "command": "python3 -m testql run scenarios/reuse-parity.testql.yaml",
+      "description": "Executes declarative behavioral test scenarios against both the shared module and consuming projects to prove 100% behavioral parity before and after deduplication.",
+      "evidenceRequired": "TestQL pass report with zero regression assertions"
     }
   ]
 }

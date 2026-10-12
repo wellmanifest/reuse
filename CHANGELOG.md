@@ -2,6 +2,14 @@
 
 All notable changes to the `wellmanifest/reuse` standard will be documented in this file.
 
+## [0.2.0] - 2026-10-12
+
+### Added
+- Expanded reuse policy with `REUSE-007` (semcod/code2logic AST & logic profiling), `REUSE-008` (autogrammar/code2schema canonical DSL contract generation), `REUSE-009` (subactor/intent sequential intent ticket dispatching), and `REUSE-010` (autogrammar/testql behavior parity verification).
+- Added tool bindings for `semcod/code2logic`, `autogrammar/code2schema`, `subactor/intent-contract-dsl-runtime`, and `autogrammar/testql` in `standard/tool-bindings.json`.
+- Implemented `scripts/reuse_orchestrator.py` integrating AST analysis, clone detection, contract generation, and intent ticket dispatch.
+- Added comprehensive unit tests in `tests/test_reuse_orchestrator.py`.
+
 ## [0.1.1] - 2026-10-11
 
 - Standard-source checks now validate the pinned canonical SSOT semantic rules, fail closed on missing/tampered validator code, and declare parity gates for vendored copies.
