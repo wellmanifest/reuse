@@ -1,0 +1,11 @@
+{
+  "schema": "wellmanifest.reuse/ssot-lock/v1",
+  "sourceRepository": "wellmanifest/ssot",
+  "sourceRevision": "4c2df178ad4225ac55c35992a6f2cb859966ee91",
+  "path": "schemas/ssot-decision.schema.json",
+  "sha256": "d7d7fd8813c26b68925c273a2ee2b8a85db8d6467652ad0acb85395eb5a53d39",
+  "validator": {
+    "path": "src/ssot.py",
+    "sha256": "a4957a75c9ca27ae591655b071e677e3e01d18c54a70c0d8686af3ddf72a203e"
+  }
+}
