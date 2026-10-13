@@ -32,6 +32,10 @@ from standard.conformance import (
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 
 
+class RedupUnavailable(RuntimeError):
+    """semcod/redup could not analyse the project; no receipt may be written."""
+
+
 def get_git_head(target: Path) -> str:
     """Retrieve 40-hex git commit SHA of HEAD."""
     res = subprocess.run(
@@ -105,38 +109,10 @@ def scan_with_redup(
 
         clone_groups = len(getattr(dup_map, "groups", []))
         return version, scanned, clone_groups
-    except (ImportError, Exception):
-        # Fallback to git ls-files if redup is unavailable or errors
-        return fallback_scan(target)
-
-
-def fallback_scan(target: Path) -> tuple[str, list[dict[str, str]], int]:
-    """Fallback scanner using git ls-files when redup is not directly importable."""
-    res = subprocess.run(
-        ["git", "-C", str(target), "ls-files"],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
-    scanned = []
-    if res.returncode == 0:
-        lines = res.stdout.strip().splitlines()
-        for rel in sorted(lines):
-            rel_p = Path(rel).as_posix()
-            if rel_p.startswith(".reuse/") or rel_p == ".reuse":
-                continue
-            abs_p = (target / rel_p).resolve()
-            if abs_p.is_file() and abs_p.is_relative_to(target.resolve()):
-                # Filter to code/script/config extensions
-                ext = abs_p.suffix.lower()
-                if ext in (
-                    ".py", ".sh", ".bash", ".js", ".ts", ".jsx", ".tsx",
-                    ".go", ".rs", ".java", ".c", ".h", ".cpp", ".json", ".yaml", ".yml",
-                ):
-                    digest = hashlib.sha256(abs_p.read_bytes()).hexdigest()
-                    scanned.append({"path": rel_p, "sha256": digest})
-
-    return "redup-compat-1.0", scanned, 0
+    except Exception as exc:  # noqa: BLE001 - any analyzer failure means no evidence
+        # Without a redup analysis there is no REUSE-002 evidence; a receipt
+        # claiming zero clones would be a false "verified".
+        raise RedupUnavailable(f"redup scan did not run: {exc}") from exc
 
 
 def generate_receipt_data(
@@ -149,13 +125,9 @@ def generate_receipt_data(
     rev = get_git_head(target)
     tool_ver, scanned, clone_groups = scan_with_redup(target, min_lines=min_lines, min_sim=min_sim)
 
-    # Policy threshold: <= 2 duplicate groups permitted without unmitigated penalty
-    # or covered by planfile / explicit mitigation
+    # REUSE-002: every clone group needs an active plan or explicit mitigation.
     has_plan = check_mitigation_in_planfile(target)
-    if clone_groups <= 2 or has_plan or force_mitigated:
-        unmitigated = 0
-    else:
-        unmitigated = max(0, clone_groups - 2)
+    unmitigated = 0 if (has_plan or force_mitigated) else clone_groups
 
     return {
         "schema": RECEIPT_SCHEMA,
