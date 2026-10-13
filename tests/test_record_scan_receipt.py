@@ -101,3 +101,36 @@ def test_fleet_reuse_audit_record_receipt(tmp_path: Path):
     assert res.returncode == 0, res.stdout + res.stderr
     assert (repo_dir / RECEIPT_PATH).is_file()
 
+
+
+def test_clone_groups_without_plan_are_unmitigated(tmp_path: Path, monkeypatch):
+    import scripts.record_scan_receipt as recorder
+
+    _init_git_repo(tmp_path)
+    scanned = [{"path": "file1.py", "sha256": hashlib.sha256((tmp_path / "file1.py").read_bytes()).hexdigest()}]
+    monkeypatch.setattr(recorder, "scan_with_redup", lambda *a, **k: ("0.4.48", scanned, 2))
+
+    data, verdict = record_scan_receipt(tmp_path)
+
+    assert data["findings"] == {"clone_groups": 2, "unmitigated": 2}
+    assert verdict["status"] == "failed"
+
+
+def test_missing_redup_writes_no_receipt(tmp_path: Path, monkeypatch):
+    import builtins
+
+    import scripts.record_scan_receipt as recorder
+
+    _init_git_repo(tmp_path)
+    real_import = builtins.__import__
+
+    def no_redup(name, *args, **kwargs):
+        if name == "redup" or name.startswith("redup."):
+            raise ImportError("redup not installed")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_redup)
+
+    with pytest.raises(recorder.RedupUnavailable):
+        record_scan_receipt(tmp_path)
+    assert not (tmp_path / RECEIPT_PATH).exists()
