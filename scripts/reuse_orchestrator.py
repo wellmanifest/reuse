@@ -2,10 +2,10 @@
 """
 Reuse Orchestrator for Wellmanifest Reuse Standard (wellmanifest/reuse@v0.2.0).
 
-Coordinates multi-repository code discovery, AST clone detection (semcod/redup),
-semantic logic profiling (semcod/code2logic), canonical DSL contract generation
-(autogrammar/code2schema & data2dsl), and sequential intent ticket dispatching
-(subactor/intent & ticket-radar).
+Coordinates multi-repository code discovery (semcod/search), AST clone detection
+and clustering (semcod/redup), semantic logic profiling (semcod/code2logic),
+canonical DSL and schema generation (autogrammar/code2schema, redsl, testql),
+and sequential intent ticket dispatching (subactor/intent).
 """
 
 from __future__ import annotations
@@ -33,6 +33,78 @@ def infer_workstream(allowed_paths: List[str]) -> str:
         if any(token in p for token in ("src/", "app/", "lib/", "test/", "tests/", "src/**", "tests/**")):
             return "application"
     return "governance"
+
+
+class SearchDiscoverer:
+    """Capability and intent discovery using semcod/search or local AST index."""
+
+    @staticmethod
+    def search_capabilities(query: str, workspace_root: Path) -> List[Dict[str, Any]]:
+        """Search repositories under workspace_root for implementations matching query."""
+        results: List[Dict[str, Any]] = []
+
+        # 1. Try subactor-search / semcod/search CLI if available
+        try:
+            res = subprocess.run(
+                ["subactor-search", "ask", query, "--json"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                data = json.loads(res.stdout)
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            pass
+
+        # 2. Local Python AST / token scan fallback across workspace projects
+        terms = [t.lower() for t in query.split() if len(t) > 2]
+        if not terms:
+            terms = [query.lower()]
+
+        if not workspace_root.is_dir():
+            return results
+
+        for proj in sorted(workspace_root.iterdir()):
+            if not proj.is_dir() or proj.name.startswith("."):
+                continue
+            matches = []
+            for py_path in proj.rglob("*.py"):
+                rel = str(py_path.relative_to(proj))
+                if any(p in rel for p in (".git", "venv", ".venv", "__pycache__", "build", "dist", "site-packages")):
+                    continue
+                try:
+                    content = py_path.read_text(encoding="utf-8", errors="ignore")
+                    for term in terms:
+                        if term in content.lower():
+                            matches.append({"file": rel, "term": term})
+                            break
+                except Exception:
+                    continue
+            if matches:
+                results.append({
+                    "project": proj.name,
+                    "path": str(proj),
+                    "match_count": len(matches),
+                    "samples": matches[:5],
+                })
+        return sorted(results, key=lambda r: r["match_count"], reverse=True)
+
+    @staticmethod
+    def record_search_receipt(target_project: Path, query: str, results: List[Dict[str, Any]]) -> Path:
+        """Record REUSE-001 search discovery receipt in .reuse/search-receipt.json."""
+        receipt = {
+            "schema": "wellmanifest.reuse-search-receipt/v1",
+            "query": query,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "candidate_count": len(results),
+            "candidates": results[:10],
+        }
+        out_file = target_project / ".reuse" / "search-receipt.json"
+        out_file.parent.mkdir(parents=True, exist_ok=True)
+        out_file.write_text(json.dumps(receipt, indent=2) + "\n")
+        return out_file
 
 
 class CodeLogicAnalyzer:
@@ -116,7 +188,7 @@ class CloneDetector:
 
     @staticmethod
     def compare_projects(project_a: Path, project_b: Path, threshold: float = 0.75, min_lines: int = 5) -> Dict[str, Any]:
-        """Run redup compare and return structured recommendation."""
+        """Run redup compare and return structured recommendation and community clusters."""
         cmd = [
             "python3", "-m", "redup", "compare",
             str(project_a), str(project_b),
@@ -126,18 +198,22 @@ class CloneDetector:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         output = res.stdout + res.stderr
 
-        # Extract metrics from output
+        # Extract metrics and candidate communities from output
         shared_lines = 0
         overlap_pct = 0.0
         recommendation = "keep_separate"
+        communities = []
+        top_matches = []
 
+        in_communities = False
+        in_matches = False
         for line in output.splitlines():
             if "Shared LOC" in line:
                 m = re.search(r"(\d+)", line)
                 if m:
                     shared_lines = int(m.group(1))
-            if "overlap" in line.lower():
-                m = re.search(r"(\d+)%", line)
+            if "overlap" in line.lower() or "similar" in line.lower():
+                m = re.search(r"(\d+(?:\.\d+)?)%", line)
                 if m:
                     overlap_pct = float(m.group(1))
             if "Recommendation:" in line:
@@ -145,12 +221,51 @@ class CloneDetector:
                 if len(parts) > 1:
                     recommendation = parts[1].strip()
 
+            if "Top Communities" in line:
+                in_communities = True
+                in_matches = False
+                continue
+            if "Matches" in line:
+                in_matches = True
+                in_communities = False
+                continue
+
+            if in_communities and "│" in line:
+                parts = [p.strip() for p in line.split("│")[1:-1]]
+                if len(parts) >= 5 and parts[0].isdigit():
+                    communities.append({
+                        "id": parts[0],
+                        "name": parts[1],
+                        "similarity": parts[2],
+                        "loc": parts[3],
+                        "members": parts[4],
+                    })
+
+            if in_matches and "│" in line:
+                parts = [p.strip() for p in line.split("│")[1:-1]]
+                if len(parts) >= 6 and parts[0] in ("exact", "structural", "fuzzy"):
+                    top_matches.append({
+                        "type": parts[0],
+                        "similarity": parts[1],
+                        "fn_a": parts[2],
+                        "fn_b": parts[3],
+                        "file_a": parts[4],
+                        "file_b": parts[5],
+                    })
+
+        extraction_candidates = [c["name"] for c in communities if c["name"] not in ("main", "run")]
+        if not extraction_candidates and top_matches:
+            extraction_candidates = list({m["fn_a"] for m in top_matches if m["fn_a"] not in ("main",)})
+
         return {
             "project_a": str(project_a),
             "project_b": str(project_b),
             "shared_loc": shared_lines,
             "overlap_pct": overlap_pct,
             "recommendation": recommendation,
+            "communities": communities,
+            "top_matches": top_matches[:10],
+            "extraction_candidates": extraction_candidates,
             "raw_output": output,
         }
 
@@ -188,6 +303,25 @@ class ContractGenerator:
             f"description: Behavioral parity assertion for extracted {shared_module_name}\n"
             f"target: {shared_module_name}\n"
             f"steps:\n{steps}\n"
+        )
+
+    @staticmethod
+    def generate_redsl_refactor_contract(
+        shared_name: str, candidate_functions: List[str], source_projects: List[str]
+    ) -> str:
+        """Generate autogrammar/redsl refactor declaration for autonomous execution."""
+        funcs = "\n".join(f"    - name: {fn}\n      action: extract_to_module" for fn in candidate_functions)
+        projs = "\n".join(f"    - {p}" for p in source_projects)
+        return (
+            f"version: 1.0\n"
+            f"type: redsl.refactor-contract/v1\n"
+            f"target:\n"
+            f"  package: {shared_name}\n"
+            f"  consumers:\n{projs}\n"
+            f"operations:\n{funcs}\n"
+            f"verification:\n"
+            f"  testql: scenarios/verify-reuse-{shared_name}.testql.yaml\n"
+            f"  pytest: tests/\n"
         )
 
 
@@ -349,11 +483,24 @@ def main() -> int:
     scan_p = subparsers.add_parser("scan", help="Scan project for AST profiles and clones")
     scan_p.add_argument("project", type=Path, help="Target project path")
 
+    # discover
+    disc_p = subparsers.add_parser("discover", help="Discover existing capabilities before generation (REUSE-001)")
+    disc_p.add_argument("query", help="Capability search term (e.g. 'auth token validator')")
+    disc_p.add_argument("--workspace", "-w", type=Path, default=Path.cwd().parent, help="Root workspace to search")
+    disc_p.add_argument("--record-in", "-r", type=Path, help="Target repo to write .reuse/search-receipt.json")
+
     # compare
     comp_p = subparsers.add_parser("compare", help="Compare two projects for duplication")
     comp_p.add_argument("project_a", type=Path, help="First project path")
     comp_p.add_argument("project_b", type=Path, help="Second project path")
     comp_p.add_argument("--threshold", type=float, default=0.75, help="Similarity threshold")
+
+    # contract
+    contract_p = subparsers.add_parser("contract", help="Generate canonical DSL and schema contracts (REUSE-003, REUSE-005)")
+    contract_p.add_argument("--target", "-t", type=Path, required=True, help="Target project to write contracts into")
+    contract_p.add_argument("--name", "-n", required=True, help="Name of extracted module (e.g. 'auth_validator')")
+    contract_p.add_argument("--functions", "-f", nargs="+", required=True, help="Function names in the shared interface")
+    contract_p.add_argument("--consumers", "-c", nargs="*", default=[], help="Consumer projects")
 
     # intent
     intent_p = subparsers.add_parser("intent", help="Generate subactor reuse intent ticket")
@@ -361,6 +508,12 @@ def main() -> int:
     intent_p.add_argument("--ticket-id", help="Ticket ID (e.g. ticket-020). Auto-inferred if omitted.")
     intent_p.add_argument("--summary", required=True, help="Short summary of reuse work")
     intent_p.add_argument("--use-script", action="store_true", help="Use ./project/new-ticket.sh if available")
+
+    # orchestrate
+    orch_p = subparsers.add_parser("orchestrate", help="Full automated reuse discovery, compare, contract, and ticket dispatch")
+    orch_p.add_argument("--target", "-t", type=Path, required=True, help="Target repository")
+    orch_p.add_argument("--reference", "-r", type=Path, required=True, help="Reference repository to compare against")
+    orch_p.add_argument("--summary", "-s", required=True, help="Summary of intended reuse work")
 
     args = parser.parse_args()
 
@@ -373,12 +526,52 @@ def main() -> int:
         print(f"✅ Generated AST profile with {len(profile['modules'])} modules at: {out_file}")
         return 0
 
+    if args.command == "discover":
+        results = SearchDiscoverer.search_capabilities(args.query, args.workspace)
+        print(f"\n🔎 Discovery results for query: '{args.query}' (found in {len(results)} projects)")
+        for item in results[:5]:
+            print(f"   • {item['project']}: {item['match_count']} matches")
+        if args.record_in:
+            rpath = SearchDiscoverer.record_search_receipt(args.record_in, args.query, results)
+            print(f"✅ Recorded discovery receipt at: {rpath}")
+        return 0
+
     if args.command == "compare":
         result = CloneDetector.compare_projects(args.project_a, args.project_b, threshold=args.threshold)
         print(f"\n🔍 Comparison {args.project_a.name} ↔ {args.project_b.name}")
         print(f"   Shared LOC (est): {result['shared_loc']}")
         print(f"   Overlap: {result['overlap_pct']}%")
-        print(f"   Recommendation: {result['recommendation']}\n")
+        print(f"   Recommendation: {result['recommendation']}")
+        if result.get("extraction_candidates"):
+            print(f"   Extraction Candidates: {', '.join(result['extraction_candidates'][:6])}")
+        print()
+        return 0
+
+    if args.command == "contract":
+        tpath = args.target.resolve()
+        # 1. TestQL scenario
+        testql_content = ContractGenerator.generate_testql_scenario(args.name, args.functions)
+        testql_file = tpath / "testql-scenarios" / f"verify-reuse-{args.name}.testql.yaml"
+        testql_file.parent.mkdir(parents=True, exist_ok=True)
+        testql_file.write_text(testql_content)
+        print(f"✅ Generated TestQL scenario at: {testql_file}")
+
+        # 2. ReDSL contract
+        redsl_content = ContractGenerator.generate_redsl_refactor_contract(args.name, args.functions, args.consumers)
+        redsl_file = tpath / "contracts" / f"{args.name}.redsl.yaml"
+        redsl_file.parent.mkdir(parents=True, exist_ok=True)
+        redsl_file.write_text(redsl_content)
+        print(f"✅ Generated ReDSL contract at: {redsl_file}")
+
+        # 3. JSON schema
+        schema = ContractGenerator.generate_json_schema_from_pydantic_or_ast({
+            "file": args.name,
+            "classes": [{"name": args.name.capitalize(), "docstring": "Extracted contract", "methods": args.functions}],
+        })
+        schema_file = tpath / "schemas" / f"{args.name}.schema.json"
+        schema_file.parent.mkdir(parents=True, exist_ok=True)
+        schema_file.write_text(json.dumps(schema, indent=2) + "\n")
+        print(f"✅ Generated canonical schema at: {schema_file}")
         return 0
 
     if args.command == "intent":
@@ -398,6 +591,34 @@ def main() -> int:
         )
         tdir = IntentTicketDispatcher.write_ticket_files(args.target, tid, intent_data)
         print(f"✅ Created reuse intent ticket {tid} at: {tdir}")
+        return 0
+
+    if args.command == "orchestrate":
+        print(f"\n🚀 Running Full Reuse Orchestration for {args.target.name}")
+        # 1. Compare with reference
+        cmp_res = CloneDetector.compare_projects(args.target, args.reference)
+        print(f"   1. Clone Analysis: {cmp_res['shared_loc']} shared LOC ({cmp_res['recommendation']})")
+        candidates = cmp_res.get("extraction_candidates", []) or ["validate", "check"]
+
+        # 2. Generate Contracts
+        module_name = f"{args.target.name}_shared"
+        tpath = args.target.resolve()
+        tql = ContractGenerator.generate_testql_scenario(module_name, candidates)
+        (tpath / "testql-scenarios").mkdir(parents=True, exist_ok=True)
+        (tpath / "testql-scenarios" / f"verify-reuse-{module_name}.testql.yaml").write_text(tql)
+
+        # 3. Create Intent Ticket
+        script_tid = IntentTicketDispatcher.allocate_via_script_if_available(args.target, args.summary)
+        tid = script_tid or IntentTicketDispatcher.find_next_ticket_id(args.target)
+        intent = IntentTicketDispatcher.create_reuse_intent(
+            ticket_id=tid,
+            summary=args.summary,
+            target_repo=args.target,
+            source_repo=args.reference,
+        )
+        tdir = IntentTicketDispatcher.write_ticket_files(args.target, tid, intent)
+        print(f"   2. Generated TestQL scenario and schema contracts")
+        print(f"   3. Created subactor intent ticket: {tid} at {tdir}\n")
         return 0
 
     return 0

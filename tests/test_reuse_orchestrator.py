@@ -88,3 +88,40 @@ def test_intent_ticket_dispatcher(tmp_path):
     readme_text = readme_file.read_text()
     assert "- **Status**: IN_PROGRESS" in readme_text
     assert "- **Workflow state**: EDIT" in readme_text
+
+
+def test_search_discoverer(tmp_path):
+    from scripts.reuse_orchestrator import SearchDiscoverer
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    proj_a = workspace / "service_a"
+    proj_a.mkdir()
+    (proj_a / "auth.py").write_text("def authenticate_jwt_token(token):\n    pass\n")
+
+    results = SearchDiscoverer.search_capabilities("authenticate jwt", workspace)
+    assert len(results) == 1
+    assert results[0]["project"] == "service_a"
+    assert results[0]["match_count"] >= 1
+
+    target = tmp_path / "target_repo"
+    target.mkdir()
+    receipt_path = SearchDiscoverer.record_search_receipt(target, "authenticate jwt", results)
+    assert receipt_path.is_file()
+    data = json.loads(receipt_path.read_text())
+    assert data["schema"] == "wellmanifest.reuse-search-receipt/v1"
+    assert data["query"] == "authenticate jwt"
+    assert data["candidate_count"] == 1
+
+
+def test_contract_generator_redsl():
+    redsl = ContractGenerator.generate_redsl_refactor_contract(
+        shared_name="auth_service",
+        candidate_functions=["validate_token", "issue_token"],
+        source_projects=["service_a", "service_b"],
+    )
+    assert "package: auth_service" in redsl
+    assert "name: validate_token" in redsl
+    assert "service_a" in redsl
+    assert "testql: scenarios/verify-reuse-auth_service.testql.yaml" in redsl
+
