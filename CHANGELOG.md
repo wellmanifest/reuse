@@ -4,6 +4,12 @@ All notable changes to the `wellmanifest/reuse` standard will be documented in t
 
 ## [Unreleased]
 
+### Added
+- REUSE-002 receipts accept a `wellmanifest.ssot/decision/v1` document in
+  `docs/ssot/*.ssot.json` as mitigation when an `allowed_divergence` or
+  `generated_mirror` decision covers every file of a clone group; the receipt
+  lists which decision mitigated each group (`findings.ssot_mitigated`) (#13).
+
 ### Fixed
 - REUSE-006B accepts a nonempty `docs/**/TROUBLESHOOTING.md` in any
   wellmanifest/docs kind folder, so adopters can satisfy both standards (#9).
