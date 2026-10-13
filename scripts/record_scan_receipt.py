@@ -78,10 +78,10 @@ def scan_with_redup(
     target: Path,
     min_lines: int = 10,
     min_sim: float = 0.80,
-) -> tuple[str, list[dict[str, str]], int]:
+) -> tuple[str, list[dict[str, str]], list[frozenset[str]]]:
     """
     Run redup scan on target project.
-    Returns (tool_version, scanned_file_entries, clone_group_count).
+    Returns (tool_version, scanned_file_entries, files_of_each_clone_group).
     """
     try:
         import contextlib
@@ -107,12 +107,46 @@ def scan_with_redup(
                 digest = hashlib.sha256(abs_p.read_bytes()).hexdigest()
                 scanned.append({"path": rel, "sha256": digest})
 
-        clone_groups = len(getattr(dup_map, "groups", []))
-        return version, scanned, clone_groups
+        groups = [
+            frozenset(Path(fragment.file).as_posix() for fragment in group.fragments)
+            for group in getattr(dup_map, "groups", [])
+        ]
+        return version, scanned, groups
     except Exception as exc:  # noqa: BLE001 - any analyzer failure means no evidence
         # Without a redup analysis there is no REUSE-002 evidence; a receipt
         # claiming zero clones would be a false "verified".
         raise RedupUnavailable(f"redup scan did not run: {exc}") from exc
+
+
+SSOT_DECISION_SCHEMA = "wellmanifest.ssot/decision/v1"
+# wellmanifest/ssot kinds that say the copies are intentionally not debt.
+SSOT_NOT_DEBT_KINDS = frozenset({"allowed_divergence", "generated_mirror"})
+
+
+def ssot_not_debt_trees(target: Path) -> list[tuple[str, frozenset[str]]]:
+    """File sets that a wellmanifest/ssot decision classifies as not debt.
+
+    Reads ``docs/ssot/*.ssot.json``. A tree reference ``path:symbol`` counts as
+    its file. Unreadable or foreign documents are ignored, never trusted.
+    """
+    found: list[tuple[str, frozenset[str]]] = []
+    for path in sorted((target / "docs" / "ssot").glob("*.ssot.json")):
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            continue
+        if not isinstance(document, dict) or document.get("schema") != SSOT_DECISION_SCHEMA:
+            continue
+        for decision in document.get("decisions") or []:
+            if not isinstance(decision, dict) or decision.get("kind") not in SSOT_NOT_DEBT_KINDS:
+                continue
+            trees = frozenset(
+                str(tree).split(":", 1)[0] for tree in decision.get("trees") or [] if isinstance(tree, str)
+            )
+            if trees:
+                ref = f"{path.relative_to(target).as_posix()}#{decision.get('id', '')}"
+                found.append((ref, trees))
+    return found
 
 
 def generate_receipt_data(
@@ -123,11 +157,19 @@ def generate_receipt_data(
 ) -> dict[str, Any]:
     """Generate in-memory receipt dictionary."""
     rev = get_git_head(target)
-    tool_ver, scanned, clone_groups = scan_with_redup(target, min_lines=min_lines, min_sim=min_sim)
+    tool_ver, scanned, groups = scan_with_redup(target, min_lines=min_lines, min_sim=min_sim)
+    clone_groups = len(groups)
 
-    # REUSE-002: every clone group needs an active plan or explicit mitigation.
+    # REUSE-002: every clone group needs an active plan, an explicit
+    # mitigation, or a wellmanifest/ssot decision that it is not debt.
+    decisions = ssot_not_debt_trees(target)
+    ssot_mitigation = []
+    for index, files in enumerate(groups):
+        ref = next((ref for ref, trees in decisions if files and files <= trees), None)
+        if ref:
+            ssot_mitigation.append({"group": index, "decision": ref})
     has_plan = check_mitigation_in_planfile(target)
-    unmitigated = 0 if (has_plan or force_mitigated) else clone_groups
+    unmitigated = 0 if (has_plan or force_mitigated) else clone_groups - len(ssot_mitigation)
 
     return {
         "schema": RECEIPT_SCHEMA,
@@ -140,6 +182,7 @@ def generate_receipt_data(
         "findings": {
             "clone_groups": clone_groups,
             "unmitigated": unmitigated,
+            "ssot_mitigated": ssot_mitigation,
         },
     }
 

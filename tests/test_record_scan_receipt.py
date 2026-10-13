@@ -108,11 +108,12 @@ def test_clone_groups_without_plan_are_unmitigated(tmp_path: Path, monkeypatch):
 
     _init_git_repo(tmp_path)
     scanned = [{"path": "file1.py", "sha256": hashlib.sha256((tmp_path / "file1.py").read_bytes()).hexdigest()}]
-    monkeypatch.setattr(recorder, "scan_with_redup", lambda *a, **k: ("0.4.48", scanned, 2))
+    groups = [frozenset({"file1.py", "file2.py"}), frozenset({"file1.py"})]
+    monkeypatch.setattr(recorder, "scan_with_redup", lambda *a, **k: ("0.4.48", scanned, groups))
 
     data, verdict = record_scan_receipt(tmp_path)
 
-    assert data["findings"] == {"clone_groups": 2, "unmitigated": 2}
+    assert data["findings"] == {"clone_groups": 2, "unmitigated": 2, "ssot_mitigated": []}
     assert verdict["status"] == "failed"
 
 
@@ -134,3 +135,43 @@ def test_missing_redup_writes_no_receipt(tmp_path: Path, monkeypatch):
     with pytest.raises(recorder.RedupUnavailable):
         record_scan_receipt(tmp_path)
     assert not (tmp_path / RECEIPT_PATH).exists()
+
+
+def _write_ssot(tmp_path: Path, kind: str, trees: list[str]) -> None:
+    ssot = tmp_path / "docs" / "ssot"
+    ssot.mkdir(parents=True, exist_ok=True)
+    (ssot / "tables.ssot.json").write_text(json.dumps({
+        "schema": "wellmanifest.ssot/decision/v1",
+        "id": "x.tables",
+        "decisions": [{"id": "x.tables.pair", "kind": kind, "trees": trees}],
+    }))
+
+
+def test_ssot_allowed_divergence_mitigates_covered_groups_only(tmp_path: Path, monkeypatch):
+    import scripts.record_scan_receipt as recorder
+
+    _init_git_repo(tmp_path)
+    _write_ssot(tmp_path, "allowed_divergence", ["file1.py", "file2.py:helper"])
+    scanned = [{"path": "file1.py", "sha256": hashlib.sha256((tmp_path / "file1.py").read_bytes()).hexdigest()}]
+    groups = [frozenset({"file1.py", "file2.py"}), frozenset({"file1.py", "other.py"})]
+    monkeypatch.setattr(recorder, "scan_with_redup", lambda *a, **k: ("0.4.48", scanned, groups))
+
+    data = recorder.generate_receipt_data(tmp_path)
+
+    assert data["findings"]["unmitigated"] == 1
+    assert data["findings"]["ssot_mitigated"] == [
+        {"group": 0, "decision": "docs/ssot/tables.ssot.json#x.tables.pair"}
+    ]
+
+
+def test_ssot_debt_kinds_do_not_mitigate(tmp_path: Path, monkeypatch):
+    import scripts.record_scan_receipt as recorder
+
+    _init_git_repo(tmp_path)
+    _write_ssot(tmp_path, "vendored_copy", ["file1.py", "file2.py"])
+    monkeypatch.setattr(
+        recorder, "scan_with_redup",
+        lambda *a, **k: ("0.4.48", [], [frozenset({"file1.py", "file2.py"})]),
+    )
+
+    assert recorder.generate_receipt_data(tmp_path)["findings"]["unmitigated"] == 1
