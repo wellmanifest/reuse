@@ -223,3 +223,17 @@ def test_missing_or_corrupt_schema_inputs_are_rejected(tmp_path):
     shutil.rmtree(root / "schemas")
     assert check_schema_files(root) is False
 
+
+
+def test_runbook_in_docs_profile_folder_counts(tmp_path):
+    (tmp_path / 'docs/SERVICE').mkdir(parents=True)
+    (tmp_path / 'docs/SERVICE/TROUBLESHOOTING.md').write_text('# Runbook\nRestart the scan.\n')
+    checks = {check['code']: check for check in run_conformance(tmp_path).checks}
+    assert checks['REUSE-006B']['passed'] is True
+
+
+def test_empty_runbook_in_docs_profile_folder_does_not_count(tmp_path):
+    (tmp_path / 'docs/SERVICE').mkdir(parents=True)
+    (tmp_path / 'docs/SERVICE/TROUBLESHOOTING.md').write_text('   \n')
+    checks = {check['code']: check for check in run_conformance(tmp_path).checks}
+    assert checks['REUSE-006B']['passed'] is False

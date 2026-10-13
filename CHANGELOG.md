@@ -2,6 +2,13 @@
 
 All notable changes to the `wellmanifest/reuse` standard will be documented in this file.
 
+
+## [Unreleased]
+
+### Fixed
+- REUSE-006B accepts a nonempty `docs/**/TROUBLESHOOTING.md` in any
+  wellmanifest/docs kind folder, so adopters can satisfy both standards (#9).
+
 ## [0.2.0] - 2026-10-12
 
 ### Added

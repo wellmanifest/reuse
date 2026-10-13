@@ -189,7 +189,11 @@ def run_conformance(target_dir: Path) -> ConformanceResult:
     )
 
     has_runbooks = any(_nonempty(path) for path in (target_dir / "errors").glob("*.md"))
-    has_runbooks = has_runbooks or _nonempty(docs_dir / "TROUBLESHOOTING.md")
+    # wellmanifest/docs places new documents under docs/<KIND>/, so a
+    # troubleshooting runbook may sit in any docs subfolder.
+    has_runbooks = has_runbooks or any(
+        _nonempty(path) for path in docs_dir.glob("**/TROUBLESHOOTING.md")
+    )
     result.add_check(
         "REUSE-006B", "Runbook Content Evidence", has_runbooks,
         "Nonempty runbook or troubleshooting guide present" if has_runbooks else "Missing nonempty runbook or troubleshooting guide",
