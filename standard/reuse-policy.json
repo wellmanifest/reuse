@@ -3,7 +3,7 @@
   "schema": "wellmanifest.reuse-policy/v1",
   "title": "Wellmanifest Reuse Policy Standard",
   "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "rules": [
     {
       "code": "REUSE-001",
@@ -79,6 +79,34 @@
       "severity": "CRITICAL",
       "statement": "Every deduplication and shared library extraction MUST provide deterministic automated verification (via unit tests and autogrammar/testql scenarios) asserting 100% behavioral parity before and after extraction.",
       "remediation": "Author TestQL verification scenarios or unit test suites exercising the shared contract against both the extracted source and the calling projects."
+    },
+    {
+      "code": "REUSE-011",
+      "name": "Single-Exporter Thin Facade & Re-Export Delegation",
+      "severity": "HIGH",
+      "statement": "When logic is shared across repositories or split out of a god module (>500 lines), exactly one canonical HOME module MUST own the implementation (per wellmanifest/modularity single-exporter), while consumer or compatibility modules MUST act as thin facades (<=150 lines) that import and re-export or adapt the canonical symbols rather than maintaining parallel copies of implementation functions.",
+      "remediation": "Extract shared logic to the canonical HOME module and replace duplicate consumer modules with thin re-export facades."
+    },
+    {
+      "code": "REUSE-012",
+      "name": "Declarative Command, Operation & Route Registry",
+      "severity": "MEDIUM",
+      "statement": "CLI subcommand parsers, HTTP route dispatchers, and operation catalogs with 5 or more branches MUST use a declarative specification table (CommandSpec / RouteSpec / OperationSpec registry) mapped to dedicated handler modules (*_commands.py, *_handlers.py, *_helpers.py) rather than imperative if/elif chains or inline parser boilerplate.",
+      "remediation": "Refactor imperative CLI/HTTP/operation dispatchers into a declarative spec table and move handlers into a dedicated *_commands.py or *_helpers.py module."
+    },
+    {
+      "code": "REUSE-013",
+      "name": "Canonical Infrastructure Primitives (MtimeCache, SqliteBatchStore, GitRefReader)",
+      "severity": "HIGH",
+      "statement": "Repositories MUST NOT re-implement ad-hoc uncached YAML/JSON/AST file parsing inside loops, unbatched SQLite .execute() loops, or repeated `git rev-parse` subprocess spawns; they MUST reuse canonical primitives: (path, mtime_ns, size)-keyed LRU caching, contextlib.closing() + batched SQLite transactions (executemany / WHERE IN), and pure-Python .git/HEAD ref readers.",
+      "remediation": "Replace ad-hoc loop I/O, unbatched SQLite queries, and git subprocesses with canonical mtime-cached loaders, batched SQLite helpers, and pure-Python Git ref readers."
+    },
+    {
+      "code": "REUSE-014",
+      "name": "Vendored Mirror & Cross-Org Identity Parity Binding",
+      "severity": "HIGH",
+      "statement": "Every vendored, overlay, or generated mirror directory (e.g., vendor/*, overlay/*, generated/parallel/contexts/*) MUST either be replaced by a thin import facade or registered in standard-sources.ssot.json (wellmanifest.ssot/decision/v1) with SHA-256 parity verification; hardcoded legacy organization slugs across governance, planfile, or package metadata are prohibited.",
+      "remediation": "Register necessary distribution mirrors in standard-sources.ssot.json with pinned SHA-256 digests or replace them with thin import facades, and align organization slugs with the repository remote."
     }
   ]
 }

@@ -237,3 +237,13 @@ def test_empty_runbook_in_docs_profile_folder_does_not_count(tmp_path):
     (tmp_path / 'docs/SERVICE/TROUBLESHOOTING.md').write_text('   \n')
     checks = {check['code']: check for check in run_conformance(tmp_path).checks}
     assert checks['REUSE-006B']['passed'] is False
+
+
+def test_architectural_abstraction_rules_present():
+    root = Path(__file__).resolve().parent.parent
+    policy = json.loads((root / "standard" / "reuse-policy.json").read_text(encoding="utf-8"))
+    codes = {rule["code"]: rule for rule in policy["rules"]}
+    for expected in ("REUSE-011", "REUSE-012", "REUSE-013", "REUSE-014"):
+        assert expected in codes, f"Missing {expected} in reuse-policy.json"
+        assert codes[expected]["severity"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+    assert policy["version"] == "0.3.0"

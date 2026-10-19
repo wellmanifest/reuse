@@ -3,7 +3,7 @@
 Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across user workspaces.
 
 [![Standard: Wellmanifest Reuse](https://img.shields.io/badge/Standard-wellmanifest%2Freuse-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-0.1.1-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-0.3.0-green.svg)](#)
 [![Autonomous Delivery: Koru Ready](https://img.shields.io/badge/Autonomous_Delivery-Koru_Ready-success.svg)](#)
 
 ---
@@ -62,6 +62,22 @@ The machine-readable specification is defined in [`standard/reuse-policy.json`](
   All generated reuse and deduplication tickets intended for autonomous delivery MUST include `tier: refactor` or `tier: reuse`, labels `[koru-autonomous, reuse]`, deterministic verification commands, and exit code 0 acceptance criteria.
 * **`REUSE-006` (Enforced Documentation & Telemetry Standards)**:
   All non-fork, user-authored repositories MUST enforce `wellmanifest/docs` (Compact v2: max 120 lines / 600 words per doc, clear `docs/` index) and `wellmanifest/logs` (`errors/{CODE}.md` runbooks, structured JSONL logs). Documentation auto-sync SHOULD leverage `semcod/code2docs` or `todocs`.
+* **`REUSE-007` (Semantic AST & Logic Profiling)**:
+  Code analysis before modularization or deduplication MUST generate structural AST and function logic profiles (`semcod/code2logic`) to identify identical signatures, schemas, and control flows across modules.
+* **`REUSE-008` (Canonical Contract & DSL Generation)**:
+  Extracted shared data structures, configurations, and API interfaces MUST have a canonical DSL schema (`autogrammar/code2schema` and `data2dsl`) committed alongside the shared library to prevent schema divergence.
+* **`REUSE-009` (Sequential Intent Ticket Dispatch)**:
+  Multi-repository reuse and deduplication migrations MUST be decomposed into sequential intent tickets governed by `subactor/intent` (`intent.json` / `wellmanifest.intent/v3`) with explicit budgets, allowed paths, and lease fencing.
+* **`REUSE-010` (Behavior Parity & Verification)**:
+  Every deduplication and shared library extraction MUST provide deterministic automated verification (`pytest` and `autogrammar/testql` scenarios) asserting 100% behavioral parity before and after extraction.
+* **`REUSE-011` (Single-Exporter Thin Facade & Re-Export Delegation)**:
+  When logic is shared across repositories or split out of a god module (`>500` lines), one canonical `HOME` module owns the implementation while consumer/compatibility modules act as thin facades (`<=150` lines) that import and re-export or adapt canonical symbols.
+* **`REUSE-012` (Declarative Command, Operation & Route Registry)**:
+  CLI subcommand parsers, HTTP route dispatchers, and operation catalogs with `>=5` branches MUST use a declarative specification table (`CommandSpec` / `RouteSpec` / `OperationSpec`) mapped to dedicated `*_commands.py` / `*_helpers.py` modules.
+* **`REUSE-013` (Canonical Infrastructure Primitives)**:
+  Prohibits uncached YAML/JSON/AST parsing in loops, unbatched SQLite `.execute()` loops, and repeated `git rev-parse` subprocess spawns; mandates `(path, mtime_ns, size)`-keyed LRU caches, `closing()` + batched SQLite transactions, and pure-Python `.git/HEAD` ref resolution.
+* **`REUSE-014` (Vendored Mirror & Cross-Org Identity Parity Binding)**:
+  Vendored, overlay, or generated mirrors (`vendor/*`, `overlay/*`, `generated/parallel/contexts/*`) MUST either become thin import facades or be bound in `standard-sources.ssot.json` with SHA-256 parity checks; hardcoded legacy organization slugs are forbidden.
 
 ---
 

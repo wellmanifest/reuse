@@ -16,3 +16,9 @@ Across 240+ repositories in `~/github/*`, developers and autonomous agents frequ
 - Reduces redundant codebase volume by up to 30%.
 - Unifies toolchain patterns across all agent frameworks (Antigravity, Koru, Subactor).
 - Accelerates ticket completion since existing tested packages replace scratch implementations.
+
+## Abstract Deduplication Patterns (REUSE-011 .. REUSE-014)
+1. **Single-Exporter Thin Facade (`REUSE-011`)**: Keep one canonical `HOME` implementation module (`<=500` lines); turn consumer and backward-compatibility modules into thin re-export facades (`<=150` lines).
+2. **Declarative Command & Route Registry (`REUSE-012`)**: Replace repetitive `argparse` / HTTP `if-elif` chains (`>=5` branches) with declarative `CommandSpec` / `RouteSpec` tables and `*_commands.py` / `*_helpers.py` modules.
+3. **Canonical Infrastructure Primitives (`REUSE-013`)**: Standardize on `(path, mtime_ns, size)` LRU file caches, `contextlib.closing` + batched SQLite transactions, and pure-Python `.git/HEAD` readers.
+4. **Vendored Mirror & Identity Parity (`REUSE-014`)**: Replace `vendor/*` / `generated/parallel/contexts/*` copies with thin facades or bind them in `standard-sources.ssot.json` with SHA-256 parity checks.
