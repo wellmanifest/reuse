@@ -243,7 +243,8 @@ def test_architectural_abstraction_rules_present():
     root = Path(__file__).resolve().parent.parent
     policy = json.loads((root / "standard" / "reuse-policy.json").read_text(encoding="utf-8"))
     codes = {rule["code"]: rule for rule in policy["rules"]}
-    for expected in ("REUSE-011", "REUSE-012", "REUSE-013", "REUSE-014", "REUSE-015", "REUSE-016", "REUSE-017", "REUSE-018"):
+    for expected in ("REUSE-011", "REUSE-012", "REUSE-013", "REUSE-014", "REUSE-015", "REUSE-016", "REUSE-017", "REUSE-018", "REUSE-019"):
         assert expected in codes, f"Missing {expected} in reuse-policy.json"
         assert codes[expected]["severity"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
-    assert policy["version"] == "0.4.0"
+    assert policy["version"] == "0.5.0"
+

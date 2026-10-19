@@ -3,7 +3,7 @@
   "schema": "wellmanifest.reuse-policy/v1",
   "title": "Wellmanifest Reuse Policy Standard",
   "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "rules": [
     {
       "code": "REUSE-001",
@@ -135,6 +135,13 @@
       "severity": "CRITICAL",
       "statement": "Cross-module, cross-component, and cross-process workflows MUST be composed as lazy, backpressure-aware generator streams (`StreamPipeline` of `StreamStage` nodes with kind `module | component | process`) ordered by prioritized topological sort (`depends_on` + lexicographic tier/weight), maintaining O(1) per-item memory and emitting a SHA-256 `StreamReceipt`.",
       "remediation": "Compose multi-step workflows using `standard.stream_flow.StreamPipeline` and `StreamStage` instead of monolithic in-memory batch orchestrators."
+    },
+    {
+      "code": "REUSE-019",
+      "name": "Cross-Language URI Process Linking & Dockuri Centralization",
+      "severity": "HIGH",
+      "statement": "Cross-project scripts and modules in Python, Bash, JS/TS, and Rust MUST replace duplicated operational logic with `uri('<scheme://authority/path>', json_or_jsonl)` linked to `dockuri` URI processes (`proc://...`, `willman://...`), enabling centralized generation, modification, and alias-preserving relocation via `proc://system/process/manage/v1`.",
+      "remediation": "Replace duplicated operational logic across languages with `standard.uri_linker.uri('<scheme://authority/path>', payload)` or `render_polyglot_link('<uri>', lang=...)` backed by dockuri."
     }
   ]
 }
