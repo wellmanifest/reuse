@@ -180,7 +180,7 @@ def test_stream_pipeline_rejects_cycles():
 
 def test_analyze_horizontal_complexity_detects_wide_branches_and_fanout(tmp_path: Path):
     code = "\n".join([
-        "import os, sys, json, re, math, time, shutil, pathlib, hashlib, heapq, sqlite3, subprocess, tempfile",
+        "import peer1, peer2, peer3, peer4, peer5, peer6, peer7, peer8, peer9, peer10, peer11, peer12, peer13",
         "def dispatch(x):",
         "    if x == 1: return 1",
         "    elif x == 2: return 2",
@@ -218,3 +218,9 @@ def test_stream_flow_schema_validates_declarative_document():
     }
     errors = list(Draft202012Validator(schema).iter_errors(doc))
     assert errors == []
+
+
+def test_wellmanifest_reuse_has_zero_horizontal_complexity_hotspots():
+    root = Path(__file__).resolve().parent.parent
+    report = analyze_horizontal_complexity(root)
+    assert report["hotspot_count"] == 0, report["hotspots"]

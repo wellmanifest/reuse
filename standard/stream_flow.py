@@ -1,27 +1,18 @@
 #!/usr/bin/env python3
-"""Wellmanifest Stream Flow, Decision Routing & Prioritized Dependency Engine (REUSE-015..018).
-
-Replaces horizontal complexity (wide if/elif chains, high peer import fan-out, and
-in-memory batch hubs) with:
-1. Lexicographic Priority Tiers (`floor` > `standard` > `opportunistic`).
-2. Declarative Decision Routing (`DecisionRule`, `DecisionEngine`).
-3. Prioritized Dependency & Fallback Resolution (`PrioritizedDependency`, `DependencyResolver`).
-4. Lazy Streaming Composition of Modules, Components, and Processes (`StreamStage`, `StreamPipeline`).
-5. Static AST Horizontal Complexity Profiling (`analyze_horizontal_complexity`).
-"""
+"""Wellmanifest Stream Flow, Decision Routing & Prioritized Dependency Engine (REUSE-015..018)."""
 
 from __future__ import annotations
 
 import argparse
-import ast
 import hashlib
 import heapq
 import json
-import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple, TypeVar
+
+from standard.horizontal_audit import analyze_horizontal_complexity
 
 T = TypeVar("T")
 
@@ -46,14 +37,9 @@ def canonical_digest(payload: Any) -> str:
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
-# ---------------------------------------------------------------------------
-# 1. Declarative Decision Routing (REUSE-016)
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class DecisionRule:
-    """A single declarative decision rule evaluated in lexicographic priority order."""
+    """A single declarative decision rule evaluated in lexicographic priority order (REUSE-016)."""
 
     id: str
     tier: str
@@ -132,14 +118,9 @@ class DecisionEngine:
         )
 
 
-# ---------------------------------------------------------------------------
-# 2. Prioritized Dependency & Fallback Resolution (REUSE-017)
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class PrioritizedDependency(Generic[T]):
-    """A provider candidate for a capability with lexicographic priority and readiness probe."""
+    """A provider candidate for a capability with lexicographic priority and readiness probe (REUSE-017)."""
 
     id: str
     capability: str
@@ -226,14 +207,9 @@ class DependencyResolver:
         raise RuntimeError(f"All providers failed for capability {capability!r}: {last_error}")
 
 
-# ---------------------------------------------------------------------------
-# 3. Streaming Composition of Modules, Components & Processes (REUSE-018)
-# ---------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class StreamEnvelope(Generic[T]):
-    """Immutable envelope flowing lazily through module, component, and process stages."""
+    """Immutable envelope flowing lazily through module, component, and process stages (REUSE-018)."""
 
     id: str
     payload: T
@@ -374,27 +350,15 @@ class StreamPipeline:
 
         def _ensure_envelopes(source: Iterable[Any]) -> Iterator[StreamEnvelope[Any]]:
             for idx, item in enumerate(source):
-                if isinstance(item, StreamEnvelope):
-                    yield item
-                else:
-                    yield StreamEnvelope(id=f"{self.pipeline_id}:{idx}", payload=item)
+                yield item if isinstance(item, StreamEnvelope) else StreamEnvelope(id=f"{self.pipeline_id}:{idx}", payload=item)
 
         def _apply_stage(upstream: Iterator[StreamEnvelope[Any]], stage: StreamStage) -> Iterator[StreamEnvelope[Any]]:
             for env in upstream:
                 decision_dict: Optional[Dict[str, Any]] = None
                 if stage.decision_engine is not None:
-                    dtrace = stage.decision_engine.decide({"id": env.id, "payload": env.payload, "meta": env.meta})
-                    decision_dict = dtrace.to_dict()
+                    decision_dict = stage.decision_engine.decide({"id": env.id, "payload": env.payload, "meta": env.meta}).to_dict()
                 if stage.when is not None and not bool(stage.when(env)):
-                    yield env.advance(
-                        stage=stage.id,
-                        kind=stage.kind,
-                        payload=env.payload,
-                        tier=stage.tier,
-                        weight=stage.weight,
-                        status="skipped",
-                        decision=decision_dict,
-                    )
+                    yield env.advance(stage=stage.id, kind=stage.kind, payload=env.payload, tier=stage.tier, weight=stage.weight, status="skipped", decision=decision_dict)
                     continue
                 try:
                     out = stage.transform(env)
@@ -405,18 +369,7 @@ class StreamPipeline:
                     out = stage.fallback(env, exc)
                     status = "fallback"
                 stage_counts[stage.id] += 1
-                if isinstance(out, StreamEnvelope):
-                    yield out
-                else:
-                    yield env.advance(
-                        stage=stage.id,
-                        kind=stage.kind,
-                        payload=out,
-                        tier=stage.tier,
-                        weight=stage.weight,
-                        status=status,
-                        decision=decision_dict,
-                    )
+                yield out if isinstance(out, StreamEnvelope) else env.advance(stage=stage.id, kind=stage.kind, payload=out, tier=stage.tier, weight=stage.weight, status=status, decision=decision_dict)
 
         current = _ensure_envelopes(items)
         for st in self._ordered_stages:
@@ -443,113 +396,6 @@ class StreamPipeline:
             stage_counts=stage_counts,
             digest=canonical_digest(body),
         )
-
-
-# ---------------------------------------------------------------------------
-# 4. Horizontal Complexity AST Profiler (REUSE-015)
-# ---------------------------------------------------------------------------
-
-_SKIP_DIRS = {
-    ".git", ".governance", ".koru", ".mypy_cache", ".planfile", ".pytest_cache",
-    ".ruff_cache", ".subactor", ".venv", ".worktrees", "__pycache__", "build",
-    "dist", "node_modules", "target", "venv",
-}
-
-
-def _if_chain_length(node: ast.If) -> int:
-    arms = 1
-    cur: Optional[ast.If] = node
-    while cur is not None and len(cur.orelse) == 1 and isinstance(cur.orelse[0], ast.If):
-        arms += 1
-        cur = cur.orelse[0]
-    if cur is not None and cur.orelse:
-        arms += 1
-    return arms
-
-
-def analyze_horizontal_complexity(
-    project_root: Path,
-    *,
-    max_branch_arms: int = 5,
-    max_fan_out: int = 12,
-    max_file_lines: int = 500,
-) -> Dict[str, Any]:
-    """Scan Python modules for horizontal complexity hotspots (REUSE-015)."""
-    root = project_root.resolve()
-    hotspots: List[Dict[str, Any]] = []
-    scanned_files = 0
-
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
-        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS and not d.startswith("."))
-        for fname in sorted(filenames):
-            if not fname.endswith(".py"):
-                continue
-            fpath = Path(dirpath) / fname
-            if fpath.is_symlink():
-                continue
-            rel = fpath.relative_to(root).as_posix()
-            try:
-                source = fpath.read_text(encoding="utf-8")
-                tree = ast.parse(source, filename=rel)
-            except (OSError, UnicodeError, SyntaxError):
-                continue
-            scanned_files += 1
-            lines_count = len(source.splitlines())
-            if lines_count > max_file_lines:
-                hotspots.append({
-                    "code": "REUSE-015-MONOLITH",
-                    "path": rel,
-                    "line": 1,
-                    "metric": lines_count,
-                    "limit": max_file_lines,
-                    "remediation": "Split module into focused stages/facades (REUSE-011, REUSE-018).",
-                })
-
-            imports: set[str] = set()
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        imports.add(alias.name.split(".")[0])
-                elif isinstance(node, ast.ImportFrom) and node.module:
-                    imports.add(node.module.split(".")[0])
-            if len(imports) > max_fan_out:
-                hotspots.append({
-                    "code": "REUSE-015-FANOUT",
-                    "path": rel,
-                    "line": 1,
-                    "metric": len(imports),
-                    "limit": max_fan_out,
-                    "remediation": "Reduce horizontal peer imports using DependencyResolver or StreamPipeline (REUSE-017, REUSE-018).",
-                })
-
-            visited_ifs: set[int] = set()
-            for node in ast.walk(tree):
-                if isinstance(node, ast.If) and id(node) not in visited_ifs:
-                    cur: Optional[ast.If] = node
-                    while cur is not None:
-                        visited_ifs.add(id(cur))
-                        if len(cur.orelse) == 1 and isinstance(cur.orelse[0], ast.If):
-                            cur = cur.orelse[0]
-                        else:
-                            cur = None
-                    arms = _if_chain_length(node)
-                    if arms >= max_branch_arms:
-                        hotspots.append({
-                            "code": "REUSE-015-BRANCH-CHAIN",
-                            "path": rel,
-                            "line": getattr(node, "lineno", 1),
-                            "metric": arms,
-                            "limit": max_branch_arms - 1,
-                            "remediation": "Replace wide if/elif chain with declarative DecisionEngine or CommandSpec table (REUSE-012, REUSE-016).",
-                        })
-
-    return {
-        "schema": "wellmanifest.horizontal-complexity-report/v1",
-        "project": str(root),
-        "scanned_files": scanned_files,
-        "hotspot_count": len(hotspots),
-        "hotspots": hotspots,
-    }
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
