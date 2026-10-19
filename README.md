@@ -3,7 +3,7 @@
 Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across user workspaces.
 
 [![Standard: Wellmanifest Reuse](https://img.shields.io/badge/Standard-wellmanifest%2Freuse-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-0.3.0-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-0.4.0-green.svg)](#)
 [![Autonomous Delivery: Koru Ready](https://img.shields.io/badge/Autonomous_Delivery-Koru_Ready-success.svg)](#)
 
 ---
@@ -78,6 +78,14 @@ The machine-readable specification is defined in [`standard/reuse-policy.json`](
   Prohibits uncached YAML/JSON/AST parsing in loops, unbatched SQLite `.execute()` loops, and repeated `git rev-parse` subprocess spawns; mandates `(path, mtime_ns, size)`-keyed LRU caches, `closing()` + batched SQLite transactions, and pure-Python `.git/HEAD` ref resolution.
 * **`REUSE-014` (Vendored Mirror & Cross-Org Identity Parity Binding)**:
   Vendored, overlay, or generated mirrors (`vendor/*`, `overlay/*`, `generated/parallel/contexts/*`) MUST either become thin import facades or be bound in `standard-sources.ssot.json` with SHA-256 parity checks; hardcoded legacy organization slugs are forbidden.
+* **`REUSE-015` (Horizontal Complexity & Peer Fan-Out Ceiling)**:
+  Caps imperative `if/elif` chains (`< 5` branches), peer import fan-out (`<= 12` modules), and module size (`<= 500` lines).
+* **`REUSE-016` (Declarative Decision Graph & Lexicographic Priority Routing)**:
+  Replaces horizontal branching with `DecisionRule` tables evaluated by lexicographic priority tier (`floor` > `standard` > `opportunistic`) and weight (`standard/stream_flow.py`).
+* **`REUSE-017` (Prioritized Dependency & Fallback Chain)**:
+  Declares runtime/module providers as `PrioritizedDependency` nodes with readiness probes and deterministic fallback chains via `DependencyResolver`.
+* **`REUSE-018` (Streaming Composition of Modules, Components & Processes)**:
+  Composes multi-step workflows across `module`, `component`, and `process` stages as lazy generator streams (`StreamPipeline`) ordered by prioritized topological sort with SHA-256 `StreamReceipt` verification.
 
 ---
 

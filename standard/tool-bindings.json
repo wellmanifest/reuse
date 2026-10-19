@@ -122,6 +122,16 @@
       "command": "python3 -m testql run scenarios/reuse-parity.testql.yaml",
       "description": "Executes declarative behavioral test scenarios against both the shared module and consuming projects to prove 100% behavioral parity before and after deduplication.",
       "evidenceRequired": "TestQL pass report with zero regression assertions"
+    },
+    {
+      "code": "REUSE-STREAM-013",
+      "name": "horizontal-complexity-and-stream-flow-audit",
+      "phase": "modularization",
+      "tool": "wellmanifest/reuse",
+      "binary": "python3",
+      "command": "python3 -m standard.stream_flow --project <target_dir> --json",
+      "description": "Audits horizontal complexity (if/elif branch chains, module fan-out, monolithic files) and validates declarative decision tables, prioritized dependencies, and module/component/process stream pipelines.",
+      "evidenceRequired": "Stream flow audit report with zero unmitigated horizontal complexity hotspots and valid StreamReceipt digest"
     }
   ]
 }

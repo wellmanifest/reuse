@@ -3,7 +3,7 @@
   "schema": "wellmanifest.reuse-policy/v1",
   "title": "Wellmanifest Reuse Policy Standard",
   "description": "Rules and governing requirements for cross-project code discovery, deduplication, modular extraction, and documentation across user-authored repositories.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "rules": [
     {
       "code": "REUSE-001",
@@ -107,6 +107,34 @@
       "severity": "HIGH",
       "statement": "Every vendored, overlay, or generated mirror directory (e.g., vendor/*, overlay/*, generated/parallel/contexts/*) MUST either be replaced by a thin import facade or registered in standard-sources.ssot.json (wellmanifest.ssot/decision/v1) with SHA-256 parity verification; hardcoded legacy organization slugs across governance, planfile, or package metadata are prohibited.",
       "remediation": "Register necessary distribution mirrors in standard-sources.ssot.json with pinned SHA-256 digests or replace them with thin import facades, and align organization slugs with the repository remote."
+    },
+    {
+      "code": "REUSE-015",
+      "name": "Horizontal Complexity & Peer Fan-Out Ceiling",
+      "severity": "HIGH",
+      "statement": "Modules and functions MUST bound horizontal complexity: wide imperative if/elif chains (>= 5 branches), excessive same-layer peer import fan-out (> 12 imports), and monolithic orchestrator modules (> 500 lines) MUST be refactored into declarative decision tables, prioritized dependency resolvers, and vertical/stream pipelines.",
+      "remediation": "Run `python3 -m standard.stream_flow --project <repo_dir>` and refactor wide branching or fan-out hotspots into DecisionEngine and StreamPipeline stages."
+    },
+    {
+      "code": "REUSE-016",
+      "name": "Declarative Decision Graph & Lexicographic Priority Routing",
+      "severity": "HIGH",
+      "statement": "Multi-branch routing and policy decisions MUST be expressed as reusable DecisionRule specifications ordered by lexicographic priority tier (`floor` > `standard` > `opportunistic`, per wellmanifest/priority) and numeric weight, with explicit `when` and `satisfied_when` predicates and deterministic decision trace receipts.",
+      "remediation": "Replace imperative if/elif trees with a declarative DecisionEngine table (`standard.stream_flow.DecisionEngine`)."
+    },
+    {
+      "code": "REUSE-017",
+      "name": "Prioritized Dependency & Fallback Chain",
+      "severity": "HIGH",
+      "statement": "Runtime and module dependencies with alternatives or degradation paths (e.g., native Rust extension -> pre-warmed UDS daemon -> cached projection -> Python stdlib fallback) MUST be declared as PrioritizedDependency nodes with readiness probes and deterministic fallback edges instead of scattered try/except imports.",
+      "remediation": "Declare providers in `standard.stream_flow.DependencyResolver` with explicit priority tiers, readiness probes, and fallback targets."
+    },
+    {
+      "code": "REUSE-018",
+      "name": "Streaming Composition of Modules, Components & Processes",
+      "severity": "CRITICAL",
+      "statement": "Cross-module, cross-component, and cross-process workflows MUST be composed as lazy, backpressure-aware generator streams (`StreamPipeline` of `StreamStage` nodes with kind `module | component | process`) ordered by prioritized topological sort (`depends_on` + lexicographic tier/weight), maintaining O(1) per-item memory and emitting a SHA-256 `StreamReceipt`.",
+      "remediation": "Compose multi-step workflows using `standard.stream_flow.StreamPipeline` and `StreamStage` instead of monolithic in-memory batch orchestrators."
     }
   ]
 }
