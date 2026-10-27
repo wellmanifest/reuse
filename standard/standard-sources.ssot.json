@@ -513,6 +513,146 @@
         "kind": "parity_test",
         "path": "scripts/check_standard_sources.py"
       }
+    },
+    {
+      "id": "wellman-agent-hosts-schema",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/new-project@67467d9bfd60d191dd270e76e976f23bf379b109/governance/agent-hosts.schema.json",
+        "path": "wellmanifest/new-project/governance/agent-hosts.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellman/src/wellman/schemas/agent-hosts.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection of canonical governance/merge schema into wellman.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
+    },
+    {
+      "id": "wellman-intent-schema",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/new-project@67467d9bfd60d191dd270e76e976f23bf379b109/governance/intent.schema.json",
+        "path": "wellmanifest/new-project/governance/intent.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellman/src/wellman/schemas/intent.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection of canonical governance/merge schema into wellman.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
+    },
+    {
+      "id": "wellman-manifest-schema",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/new-project@67467d9bfd60d191dd270e76e976f23bf379b109/governance/manifest.schema.json",
+        "path": "wellmanifest/new-project/governance/manifest.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellman/src/wellman/schemas/manifest.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection of canonical governance/merge schema into wellman.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
+    },
+    {
+      "id": "wellman-work-start-report-schema",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/new-project@67467d9bfd60d191dd270e76e976f23bf379b109/governance/work-start-report.schema.json",
+        "path": "wellmanifest/new-project/governance/work-start-report.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellman/src/wellman/schemas/work-start-report.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection of canonical governance/merge schema into wellman.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
+    },
+    {
+      "id": "wellman-merge-decision-schema",
+      "kind": "vendored_copy",
+      "canonical": {
+        "ref": "repo://wellmanifest/merge@efd04397b7a1310856f4ded503925e7191e75764/standard/merge-decision.schema.json",
+        "path": "wellmanifest/merge/standard/merge-decision.schema.json"
+      },
+      "trees": [
+        "wellmanifest/wellman/src/wellman/schemas/merge-decision.schema.json"
+      ],
+      "actions": [
+        {
+          "do": "edit_upstream"
+        },
+        {
+          "do": "bump_pin"
+        }
+      ],
+      "forbid": [
+        "delete_generated_mirror",
+        "fork_logic_into_consumer"
+      ],
+      "rationale": "Distribution projection of canonical governance/merge schema into wellman.",
+      "gate": {
+        "kind": "parity_test",
+        "path": "scripts/check_standard_sources.py"
+      }
     }
   ],
   "questions": []
