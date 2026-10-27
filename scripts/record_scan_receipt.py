@@ -86,7 +86,13 @@ def scan_with_redup(
     try:
         import contextlib
         import io
-        import redup
+        try:
+            import redup
+        except ModuleNotFoundError:
+            candidate_src = ROOT_DIR.parent.parent / "semcod" / "redup" / "src"
+            if candidate_src.is_dir() and str(candidate_src) not in sys.path:
+                sys.path.insert(0, str(candidate_src))
+            import redup
         from redup import ScanConfig, analyze, scan_project
 
         version = getattr(redup, "__version__", "0.4.48")

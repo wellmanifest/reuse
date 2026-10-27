@@ -34,7 +34,7 @@
       "id": "lifecycle-parser",
       "kind": "vendored_copy",
       "canonical": {
-        "ref": "repo://wellmanifest/lifecycle@4b5e131a670afb46ca87291479fed7c0fefcf370/src/lifecycle.py",
+        "ref": "repo://wellmanifest/lifecycle@6b4c893ba73095ae0a402ec808c5998b1dd36815/src/lifecycle.py",
         "path": "wellmanifest/lifecycle/src/lifecycle.py"
       },
       "trees": [
@@ -45,7 +45,8 @@
         "wellmanifest/saas-lifecycle/standard/lifecycle.py",
         "wellmanifest/twin-lifecycle/standard/lifecycle.py",
         "wellmanifest/new-project/subprojects/git-lifecycle/lifecycle.py",
-        "wellmanifest/new-project/subprojects/ticket-lifecycle/lifecycle.py"
+        "wellmanifest/new-project/subprojects/ticket-lifecycle/lifecycle.py",
+        "wellmanifest/wellman/src/wellman/_bundled/lifecycle.py"
       ],
       "actions": [
         {
