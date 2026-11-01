@@ -248,3 +248,31 @@ def test_architectural_abstraction_rules_present():
         assert codes[expected]["severity"] in ("CRITICAL", "HIGH", "MEDIUM", "LOW")
     assert policy["version"] == "0.5.0"
 
+
+def test_configurable_sprints_dir_and_ticket_intent_carriers(tmp_path):
+    # 1. Custom sprints_dir declared in .planfile/config.yaml
+    (tmp_path / ".planfile").mkdir(parents=True)
+    (tmp_path / ".planfile/config.yaml").write_text("sprints_dir: ops/sprints\n", encoding="utf-8")
+    (tmp_path / "ops/sprints").mkdir(parents=True)
+    (tmp_path / "ops/sprints/s1.yaml").write_text("sprint:\n  id: s-100\n  tickets: {}\n", encoding="utf-8")
+    checks = {c["code"]: c for c in run_conformance(tmp_path).checks}
+    assert checks["REUSE-004"]["passed"] is True
+    assert checks["REUSE-004"]["details"]["carrier"] == "sprint:ops/sprints"
+
+    # 2. Explicit sprints_dir override outside project is rejected fail-closed
+    outside = tmp_path.parent / "outside_sprints"
+    checks_out = {c["code"]: c for c in run_conformance(tmp_path, sprints_dir=outside).checks}
+    assert checks_out["REUSE-004"]["passed"] is False
+
+    # 3. Canonical project/ticket-NNN/intent.json carrier without .planfile/sprints
+    proj2 = tmp_path / "new_project_repo"
+    (proj2 / "project/ticket-001").mkdir(parents=True)
+    (proj2 / "project/ticket-001/intent.json").write_text(
+        json.dumps({"ticket": "ticket-001", "allowedPaths": ["src/app.py"]}),
+        encoding="utf-8",
+    )
+    checks_np = {c["code"]: c for c in run_conformance(proj2).checks}
+    assert checks_np["REUSE-004"]["passed"] is True
+    assert checks_np["REUSE-004"]["details"]["carrier"] == "ticket-intents:project/ticket-*/intent.json"
+
+
