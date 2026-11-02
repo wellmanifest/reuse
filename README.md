@@ -3,7 +3,7 @@
 Standard and governed workflow for **cross-project code discovery, deduplication, continuous modularization, and reuse** across user workspaces.
 
 [![Standard: Wellmanifest Reuse](https://img.shields.io/badge/Standard-wellmanifest%2Freuse-blue.svg)](#)
-[![Version](https://img.shields.io/badge/version-0.4.0-green.svg)](#)
+[![Version](https://img.shields.io/badge/version-0.5.0-green.svg)](#)
 [![Autonomous Delivery: Koru Ready](https://img.shields.io/badge/Autonomous_Delivery-Koru_Ready-success.svg)](#)
 
 ---
