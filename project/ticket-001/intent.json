@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "ticketId": "ticket-001",
+  "title": "Configurable sprints directory and canonical ticket intent carriers in REUSE-004",
+  "owner": "antigravity",
+  "workstream": "application",
+  "status": "IN_PROGRESS",
+  "phase": "EDIT",
+  "allowedPaths": [
+    "project/ticket-001/**",
+    "standard/conformance.py",
+    "tests/test_conformance.py"
+  ]
+}

@@ -1,0 +1,629 @@
+{
+  "schema": "wellmanifest.standard-pack-routing/v1",
+  "owner": "wellmanifest/new-project",
+  "purpose": "composition-only",
+  "aliases": {
+    "wellmanifest/git": "wellmanifest/git-lifecycle"
+  },
+  "rules": {
+    "oneSemanticOwner": true,
+    "aliasesMustNotCreateRepositories": true,
+    "adoptionProjectionRequiresImmutableRevision": true,
+    "adoptionProjectionRequiresDigest": true,
+    "runtimeBindingsRemainWithAdopter": true
+  },
+  "executionModels": {
+    "reference-only": {
+      "maximumLevel": "S0",
+      "authorizesEffects": false
+    },
+    "local-conformance": {
+      "maximumLevel": "S2",
+      "authorizesEffects": false
+    },
+    "protected-conformance": {
+      "maximumLevel": "S4",
+      "authorizesEffects": false
+    },
+    "runtime-conformance": {
+      "maximumLevel": "S5",
+      "authorizesEffects": true
+    }
+  },
+  "levels": {
+    "S0": "Versioned normative contract with closed schemas and negative examples.",
+    "S1": "Dependency-free deterministic conformance command with stable finding codes.",
+    "S2": "Immutable source revision and SHA-256 digests for every managed projection.",
+    "S3": "The conformance command runs as a stable required CI check on pull requests.",
+    "S4": "Hosted branch protection or rulesets require the exact CI check before merge.",
+    "S5": "The effectful runtime validates live bindings and emits a digest-bound receipt."
+  },
+  "profiles": {
+    "baseline": {
+      "extends": [],
+      "requirements": [
+        {
+          "id": "wellmanifest/new-project",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/git-lifecycle",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/worktrees",
+          "minimumLevel": "S3"
+        },
+        {
+          "id": "wellmanifest/merge",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/validation-attestation",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/ticket-lifecycle",
+          "minimumLevel": "S3"
+        },
+        {
+          "id": "wellmanifest/logs",
+          "minimumLevel": "S3"
+        },
+        {
+          "id": "wellmanifest/docs",
+          "minimumLevel": "S3"
+        }
+      ]
+    },
+    "domain-pack": {
+      "extends": [
+        "baseline"
+      ],
+      "requirements": [
+        {
+          "id": "wellmanifest/dsl",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/code-dsl",
+          "minimumLevel": "S4"
+        }
+      ]
+    },
+    "runtime-service": {
+      "extends": [
+        "baseline"
+      ],
+      "requirements": [
+        {
+          "id": "wellmanifest/poa",
+          "minimumLevel": "S5"
+        },
+        {
+          "id": "wellmanifest/authority-lifecycle",
+          "minimumLevel": "S5"
+        },
+        {
+          "id": "wellmanifest/logs",
+          "minimumLevel": "S5"
+        }
+      ]
+    },
+    "agent-executor": {
+      "extends": [
+        "runtime-service"
+      ],
+      "requirements": [
+        {
+          "id": "wellmanifest/agent",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/repair-lifecycle",
+          "minimumLevel": "S5"
+        },
+        {
+          "id": "wellmanifest/validation-attestation",
+          "minimumLevel": "S5"
+        },
+        {
+          "id": "wellmanifest/skills",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/llm",
+          "minimumLevel": "S4"
+        },
+        {
+          "id": "wellmanifest/session-recovery",
+          "minimumLevel": "S3"
+        }
+      ]
+    },
+    "deployment": {
+      "extends": [
+        "runtime-service"
+      ],
+      "requirements": [
+        {
+          "id": "wellmanifest/deployment",
+          "minimumLevel": "S5"
+        },
+        {
+          "id": "wellmanifest/merge",
+          "minimumLevel": "S5"
+        }
+      ]
+    },
+    "embedded-fleet": {
+      "extends": [
+        "deployment"
+      ],
+      "requirements": [
+        {
+          "id": "wellmanifest/semver",
+          "minimumLevel": "S3"
+        }
+      ]
+    }
+  },
+  "duplicationPolicy": {
+    "independentNormativeSourcesForOneConcern": "error",
+    "managedProjectionWithMatchingRevisionAndDigest": "allowed",
+    "managedProjectionWithDigestDrift": "error",
+    "historicalWorktree": "exclude-from-authority-scan-and-audit-via-wellmanifest/worktrees",
+    "compatibilityAlias": "allowed-only-when-it-resolves-to-one-canonical-pack"
+  },
+  "rollout": {
+    "defaultMode": "audit",
+    "targetMode": "enforce",
+    "transition": "Attach catalog and checker, record immutable evidence, enable the exact required check, then switch the adoption record to enforce."
+  },
+  "packs": [
+    {
+      "id": "wellmanifest/nohardcode",
+      "owns": [
+        "configuration audit"
+      ],
+      "excludes": [
+        "execution authority",
+        "verified runtime conformance"
+      ]
+    },
+    {
+      "id": "wellmanifest/taskand",
+      "owns": [
+        "capsule contracts"
+      ],
+      "excludes": [
+        "execution authority",
+        "verified runtime conformance"
+      ],
+      "requires": [
+        "wellmanifest/uriprocess"
+      ]
+    },
+    {
+      "id": "wellmanifest/uriprocess",
+      "owns": [
+        "package manufacture"
+      ],
+      "excludes": [
+        "execution authority",
+        "verified runtime conformance"
+      ]
+    },
+    {
+      "id": "wellmanifest/ssot",
+      "owns": [
+        "SSOT decision documents"
+      ],
+      "excludes": [
+        "execution authority",
+        "code edits or merges",
+        "verified runtime conformance"
+      ],
+      "requires": [
+        "wellmanifest/dsl"
+      ]
+    },
+    {
+      "id": "wellmanifest/project-ssot",
+      "owns": [
+        "cross-project SSoT projection",
+        "multi-repo artifact synchronization"
+      ],
+      "requires": [
+        "wellmanifest/dsl",
+        "wellmanifest/ssot"
+      ]
+    },
+    {
+      "id": "wellmanifest/semver",
+      "owns": [
+        "release version contracts"
+      ],
+      "excludes": [
+        "execution authority",
+        "flashing or deployment",
+        "verified runtime conformance"
+      ]
+    },
+    {
+      "id": "wellmanifest/nl-uri-dsl-llm",
+      "owns": [
+        "NL to URI contracts"
+      ],
+      "excludes": [
+        "execution authority",
+        "verified runtime conformance"
+      ],
+      "requires": [
+        "wellmanifest/dsl",
+        "wellmanifest/llm",
+        "wellmanifest/uriprocess"
+      ]
+    },
+    {
+      "id": "wellmanifest/reuse",
+      "owns": [
+        "code discovery",
+        "AST clone detection",
+        "reuse orchestration",
+        "modular extraction",
+        "intent dispatching",
+        "declarative decision routing",
+        "prioritized dependency chains",
+        "streaming module pipelines"
+      ],
+      "requires": [
+        "wellmanifest/modularity",
+        "wellmanifest/priority"
+      ]
+    },
+    {
+      "id": "wellmanifest/modularity",
+      "owns": [
+        "module boundary contracts",
+        "acyclic module dependency DAG",
+        "explicit symbol exports"
+      ]
+    },
+    {
+      "id": "wellmanifest/priority",
+      "owns": [
+        "priority tier ranking",
+        "signal-driven weight revision",
+        "priority ranking receipts"
+      ]
+    },
+    {
+      "id": "wellmanifest/new-project",
+      "owns": [
+        "repository bootstrap",
+        "pack composition",
+        "immutable adoption projection"
+      ]
+    },
+    {
+      "id": "wellmanifest/git-lifecycle",
+      "owns": [
+        "repository identity",
+        "branch and ref lifecycle",
+        "pull-request lifecycle",
+        "remote hygiene"
+      ],
+      "requires": [
+        "wellmanifest/new-project",
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/worktrees",
+      "owns": [
+        "worktree placement",
+        "worktree naming",
+        "lease path identity",
+        "local checkout audit handoff"
+      ],
+      "requires": [
+        "wellmanifest/new-project"
+      ]
+    },
+    {
+      "id": "wellmanifest/merge",
+      "owns": [
+        "divergent-work disposition",
+        "merge decision contract"
+      ],
+      "excludes": [
+        "merge execution",
+        "deletion"
+      ],
+      "requires": [
+        "wellmanifest/new-project",
+        "wellmanifest/git-lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/validation-attestation",
+      "owns": [
+        "trusted exact-head evidence",
+        "attestation validation"
+      ],
+      "requires": [
+        "wellmanifest/new-project"
+      ]
+    },
+    {
+      "id": "wellmanifest/ticket-lifecycle",
+      "owns": [
+        "ticket state semantics",
+        "ticket transition semantics",
+        "ticket execution lease"
+      ],
+      "requires": [
+        "wellmanifest/new-project",
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/authority-lifecycle",
+      "owns": [
+        "authority lease semantics",
+        "fencing and expiry semantics"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/llm",
+      "owns": [
+        "LLM policy boundary"
+      ],
+      "excludes": [
+        "runtime provider credentials",
+        "runtime model routing"
+      ]
+    },
+    {
+      "id": "wellmanifest/logs",
+      "owns": [
+        "structured log contract",
+        "diagnostic event vocabulary"
+      ]
+    },
+    {
+      "id": "wellmanifest/poa",
+      "owns": [
+        "plan of action contract"
+      ]
+    },
+    {
+      "id": "wellmanifest/dsl",
+      "owns": [
+        "DSL interoperability contract"
+      ]
+    },
+    {
+      "id": "wellmanifest/code-dsl",
+      "owns": [
+        "code-level semantic query contract",
+        "AST diagnostics model"
+      ],
+      "requires": [
+        "wellmanifest/dsl"
+      ]
+    },
+    {
+      "id": "wellmanifest/env-dsl",
+      "owns": [
+        "environment contract DSL",
+        "secret/env separation"
+      ],
+      "requires": [
+        "wellmanifest/dsl"
+      ]
+    },
+    {
+      "id": "wellmanifest/nl-dsl-llm",
+      "owns": [
+        "tripartite natural-language, canonical DSL, and adaptive LLM contract",
+        "universal MCP/CLI parity"
+      ],
+      "requires": [
+        "wellmanifest/dsl",
+        "wellmanifest/llm"
+      ]
+    },
+    {
+      "id": "wellmanifest/nl-api-llm",
+      "owns": [
+        "tripartite NL-API-LLM architecture",
+        "universal API registry",
+        "dynamic frontend menu tree",
+        "multi-protocol dispatch"
+      ],
+      "requires": [
+        "wellmanifest/dsl",
+        "wellmanifest/llm"
+      ]
+    },
+    {
+      "id": "wellmanifest/repair-lifecycle",
+      "owns": [
+        "repair and remediation lifecycle"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/deployment",
+      "owns": [
+        "deployment contract",
+        "deployment verification"
+      ]
+    },
+    {
+      "id": "wellmanifest/agent",
+      "owns": [
+        "agent contract",
+        "agent host governance",
+        "participant guidelines"
+      ],
+      "requires": [
+        "wellmanifest/new-project"
+      ]
+    },
+    {
+      "id": "wellmanifest/docs",
+      "owns": [
+        "documentation readiness",
+        "docs gate"
+      ]
+    },
+    {
+      "id": "wellmanifest/report",
+      "owns": [
+        "reproducible report receipts",
+        "report verification"
+      ],
+      "requires": [
+        "wellmanifest/docs"
+      ]
+    },
+    {
+      "id": "wellmanifest/policy-dsl",
+      "owns": [
+        "policy DSL spec",
+        "policy enforcement"
+      ],
+      "requires": [
+        "wellmanifest/dsl"
+      ]
+    },
+    {
+      "id": "wellmanifest/skills",
+      "owns": [
+        "skill execution",
+        "tool interfaces"
+      ]
+    },
+    {
+      "id": "wellmanifest/account-runtime",
+      "owns": [
+        "service access",
+        "account runtime"
+      ]
+    },
+    {
+      "id": "wellmanifest/saas-lifecycle",
+      "owns": [
+        "saas adapter profile",
+        "saas lifecycle"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/twin-lifecycle",
+      "owns": [
+        "twin lifecycle"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/anonym",
+      "owns": [
+        "data anonymization",
+        "privacy boundaries"
+      ]
+    },
+    {
+      "id": "wellmanifest/legal-lifecycle",
+      "owns": [
+        "license compliance",
+        "contributor agreements"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/product-lifecycle",
+      "owns": [
+        "product maturity stages",
+        "release gates"
+      ],
+      "requires": [
+        "wellmanifest/lifecycle"
+      ]
+    },
+    {
+      "id": "wellmanifest/session-recovery",
+      "owns": [
+        "LLM session recovery",
+        "conversation storage resilience",
+        "host resumption protocol",
+        "session crash isolation",
+        "state rehydration"
+      ]
+    },
+    {
+      "id": "wellmanifest/lifecycle",
+      "owns": [
+        "lifecycle meta-DSL",
+        "lifecycle graph invariants",
+        "lifecycle compaction audit"
+      ]
+    },
+    {
+      "id": "wellmanifest/mcp",
+      "owns": [
+        "MCP operation registry",
+        "MCP URI reuse contract",
+        "MCP task receipt replay"
+      ]
+    },
+    {
+      "id": "wellmanifest/dockuri",
+      "owns": [
+        "DockURI process registry",
+        "MCP URI process dispatch",
+        "universal process conformation"
+      ],
+      "requires": [
+        "wellmanifest/uriprocess",
+        "wellmanifest/mcp"
+      ]
+    },
+    {
+      "id": "wellmanifest/hostguard",
+      "owns": [
+        "host resource probe",
+        "storage floor resilience",
+        "host remediation receipts"
+      ]
+    },
+    {
+      "id": "wellmanifest/status",
+      "owns": [
+        "status signal taxonomy",
+        "live status telemetry"
+      ]
+    },
+    {
+      "id": "wellmanifest/performance",
+      "owns": [
+        "performance budget contracts",
+        "benchmark regression gates"
+      ]
+    }
+  ]
+}

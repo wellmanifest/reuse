@@ -88,6 +88,8 @@ def _nonempty(path: Path) -> bool:
 
 
 def _has_sprint(sprints_dir: Path) -> bool:
+    if not sprints_dir.is_dir():
+        return False
     for path in sorted(sprints_dir.glob("*.yaml")):
         try:
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -98,6 +100,51 @@ def _has_sprint(sprints_dir: Path) -> bool:
         sprint = data.get("sprint")
         if (isinstance(sprint, dict) and isinstance(sprint.get("id"), str)
                 and sprint["id"].strip() and isinstance(sprint.get("tickets"), dict)):
+            return True
+    return False
+
+
+def _resolve_sprints_dirs(target_dir: Path, sprints_dir: Path | None = None) -> List[Path]:
+    root = target_dir.resolve()
+    if sprints_dir is not None:
+        candidate = (sprints_dir if sprints_dir.is_absolute() else root / sprints_dir).resolve()
+        return [candidate] if candidate.is_relative_to(root) else []
+
+    candidates: List[Path] = []
+    for cfg_rel in (Path(".planfile") / "config.yaml", Path("planfile") / "config.yaml"):
+        cfg_path = root / cfg_rel
+        if cfg_path.is_file():
+            try:
+                cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, yaml.YAMLError):
+                cfg = None
+            if isinstance(cfg, dict):
+                raw = cfg.get("sprints_dir") or (cfg.get("paths", {}) if isinstance(cfg.get("paths"), dict) else {}).get("sprints")
+                if isinstance(raw, str) and raw.strip():
+                    resolved = (root / raw.strip()).resolve()
+                    if resolved.is_relative_to(root):
+                        candidates.append(resolved)
+
+    for fallback in (root / ".planfile" / "sprints", root / "planfile" / "sprints"):
+        if fallback not in candidates:
+            candidates.append(fallback)
+    return candidates
+
+
+def _has_canonical_ticket_intents(target_dir: Path) -> bool:
+    project_dir = target_dir / "project"
+    if not project_dir.is_dir():
+        return False
+    for intent_path in sorted(project_dir.glob("ticket-*/intent.json")):
+        try:
+            doc = json.loads(intent_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            continue
+        if not isinstance(doc, dict):
+            continue
+        ticket_id = doc.get("ticket") or doc.get("ticketId")
+        allowed = doc.get("allowedPaths")
+        if isinstance(ticket_id, str) and ticket_id.startswith("ticket-") and isinstance(allowed, list) and allowed:
             return True
     return False
 
@@ -168,14 +215,22 @@ def evaluate_scan_receipt(target: Path) -> Dict[str, Any]:
     return verdict("verified", "revision- and digest-bound scan with no unmitigated clones", findings=findings)
 
 
-def run_conformance(target_dir: Path) -> ConformanceResult:
+def run_conformance(target_dir: Path, sprints_dir: Path | None = None) -> ConformanceResult:
     """Check bounded content evidence; do not certify unobserved enforcement."""
     result = ConformanceResult(target_dir)
-    has_planfile = _has_sprint(target_dir / ".planfile" / "sprints")
+    sprint_candidates = _resolve_sprints_dirs(target_dir, sprints_dir=sprints_dir)
+    matched_sprint_dir = next((d for d in sprint_candidates if _has_sprint(d)), None)
+    has_ticket_intents = False if sprints_dir is not None else _has_canonical_ticket_intents(target_dir)
+    has_planfile = matched_sprint_dir is not None or has_ticket_intents
+    carrier = (
+        f"sprint:{matched_sprint_dir.relative_to(target_dir.resolve())}"
+        if matched_sprint_dir is not None
+        else ("ticket-intents:project/ticket-*/intent.json" if has_ticket_intents else "none")
+    )
     result.add_check(
         "REUSE-004", "Planfile Task Orchestration", has_planfile,
-        "Parsed sprint with ID and ticket mapping" if has_planfile else "No parseable sprint with ID and ticket mapping",
-        {"planfile_exists": has_planfile, "standard_enforcement_verified": False},
+        "Parsed sprint or canonical ticket intent carrier" if has_planfile else "No parseable sprint or canonical ticket intent carrier",
+        {"planfile_exists": has_planfile, "carrier": carrier, "standard_enforcement_verified": False},
     )
 
     docs_dir = target_dir / "docs"
@@ -209,12 +264,13 @@ def run_conformance(target_dir: Path) -> ConformanceResult:
     return result
 
 
-def main() -> int:
+def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Wellmanifest Reuse Conformance Checker")
     parser.add_argument("--project", "-p", type=Path, default=Path.cwd(), help="Target project root directory")
+    parser.add_argument("--sprints-dir", type=Path, default=None, help="Optional relative or in-project sprints directory override")
     parser.add_argument("--check-schema", action="store_true", help="Validate standard policy and tool bindings schemas")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON format")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     standard_root = Path(__file__).resolve().parent.parent
     if args.check_schema:
@@ -225,7 +281,7 @@ def main() -> int:
             print(f"Standard schemas valid: {'YES' if valid else 'NO'}")
         return 0 if valid else 1
 
-    res = run_conformance(args.project)
+    res = run_conformance(args.project, sprints_dir=args.sprints_dir)
     if args.json:
         print(json.dumps(res.to_dict(), indent=2))
     else:
